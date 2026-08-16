@@ -1,9 +1,13 @@
 package com.example.iptvplayer
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
+import android.view.ViewGroup
+import android.widget.ImageButton
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -48,8 +52,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
@@ -142,7 +150,6 @@ fun IPTVApp() {
                             onQueryChange = { search = it },
                             loading = loadingMovies
                         )
-
                         "channels" -> ChannelPage(
                             channels = channels,
                             query = search,
@@ -150,7 +157,6 @@ fun IPTVApp() {
                             loading = loadingTv,
                             onPlay = { selectedChannel = it }
                         )
-
                         else -> HomePage(
                             onTv = { page = "channels" },
                             onMovies = { page = "movies" }
@@ -164,44 +170,23 @@ fun IPTVApp() {
 
 @Composable
 private fun HomePage(onTv: () -> Unit, onMovies: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(150.dp)
                 .background(
-                    brush = Brush.linearGradient(
-                        listOf(Color(0xFF6D28D9), Color(0xFF172B8A))
-                    ),
+                    brush = Brush.linearGradient(listOf(Color(0xFF6D28D9), Color(0xFF172B8A))),
                     shape = RoundedCornerShape(22.dp)
                 )
                 .padding(20.dp)
         ) {
             Column {
-                Text(
-                    text = "TV",
-                    color = Color.White.copy(alpha = 0.28f),
-                    fontSize = 54.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    text = "Смотрите любимые каналы",
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "и доступное кино",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 14.sp
-                )
+                Text(text = "TV", color = Color.White.copy(alpha = 0.28f), fontSize = 54.sp, fontWeight = FontWeight.Black)
+                Text(text = "Смотрите любимые каналы", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(text = "и доступное кино", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
             }
         }
-
         Spacer(modifier = Modifier.height(18.dp))
         HomeButton("📺", "ТВ каналы", "Ваш M3U плейлист", onTv)
         HomeButton("🎬", "Фильмы", "Internet Archive · открытые лицензии", onMovies)
@@ -220,11 +205,7 @@ private fun HomeButton(icon: String, title: String, subtitle: String, onClick: (
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = icon, fontSize = 30.sp)
-        Column(
-            modifier = Modifier
-                .padding(start = 14.dp)
-                .weight(1f)
-        ) {
+        Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
             Text(text = title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Text(text = subtitle, color = Muted, fontSize = 12.sp)
         }
@@ -240,11 +221,7 @@ private fun ChannelPage(
     loading: Boolean,
     onPlay: (Channel) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
@@ -252,7 +229,6 @@ private fun ChannelPage(
             singleLine = true,
             placeholder = { Text(text = "Поиск канала", color = Muted) }
         )
-
         if (loading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Purple)
@@ -265,9 +241,7 @@ private fun ChannelPage(
                 contentPadding = PaddingValues(vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                items(filtered) { channel ->
-                    ChannelRow(channel = channel, onPlay = onPlay)
-                }
+                items(filtered) { channel -> ChannelRow(channel = channel, onPlay = onPlay) }
             }
         }
     }
@@ -284,35 +258,14 @@ private fun ChannelRow(channel: Channel, onPlay: (Channel) -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(Color(0xFF273144), RoundedCornerShape(12.dp)),
+            modifier = Modifier.size(48.dp).background(Color(0xFF273144), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = channel.name.take(2),
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
+            Text(text = channel.name.take(2), color = Color.White, fontWeight = FontWeight.Bold)
         }
-
-        Column(
-            modifier = Modifier
-                .padding(start = 12.dp)
-                .weight(1f)
-        ) {
-            Text(
-                text = channel.name,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = channel.group.ifBlank { "ТВ канал" },
-                color = Muted,
-                fontSize = 12.sp
-            )
+        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+            Text(text = channel.name, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = channel.group.ifBlank { "ТВ канал" }, color = Muted, fontSize = 12.sp)
         }
         Text(text = "▶", color = Purple)
     }
@@ -328,12 +281,7 @@ private fun MoviePage(
     val filtered = movies.filter {
         it.title.contains(query, ignoreCase = true) || it.description.contains(query, ignoreCase = true)
     }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
@@ -343,26 +291,11 @@ private fun MoviePage(
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(text = "🎬 Internet Archive", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(
-            text = "Public Domain / Creative Commons",
-            color = Muted,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
-        )
-
+        Text(text = "Public Domain / Creative Commons", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp))
         when {
-            loading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Purple)
-            }
-
-            filtered.isEmpty() -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Каталог пуст или источник недоступен", color = Muted)
-            }
-
-            else -> LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 20.dp)
-            ) {
+            loading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
+            filtered.isEmpty() -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(text = "Каталог пуст или источник недоступен", color = Muted) }
+            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
                 items(filtered) { movie -> MovieCard(movie) }
             }
         }
@@ -376,53 +309,24 @@ private fun MovieCard(movie: Movie) {
         modifier = Modifier
             .fillMaxWidth()
             .background(Card, RoundedCornerShape(16.dp))
-            .clickable {
-                context.startActivity(
-                    Intent(Intent.ACTION_VIEW, Uri.parse("https://archive.org/details/${movie.id}"))
-                )
-            }
+            .clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://archive.org/details/${movie.id}"))) }
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
             model = "https://archive.org/services/img/${movie.id}",
             contentDescription = movie.title,
-            modifier = Modifier
-                .width(88.dp)
-                .height(118.dp)
-                .background(Color(0xFF222A35), RoundedCornerShape(12.dp))
+            modifier = Modifier.width(88.dp).height(118.dp).background(Color(0xFF222A35), RoundedCornerShape(12.dp))
         )
-        Column(
-            modifier = Modifier
-                .padding(start = 14.dp)
-                .weight(1f)
-        ) {
-            Text(
-                text = movie.title,
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (movie.year.isNotBlank()) {
-                Text(text = movie.year, color = Purple, fontSize = 12.sp)
-            }
+        Column(modifier = Modifier.padding(start = 14.dp).weight(1f)) {
+            Text(text = movie.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (movie.year.isNotBlank()) Text(text = movie.year, color = Purple, fontSize = 12.sp)
             Text(
                 text = movie.description.ifBlank { "Открыть карточку фильма в Internet Archive" },
-                color = Muted,
-                fontSize = 12.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
+                color = Muted, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 5.dp)
             )
-            Text(
-                text = "▶ Открыть и смотреть",
-                color = Purple,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 7.dp)
-            )
+            Text(text = "▶ Открыть и смотреть", color = Purple, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 7.dp))
         }
     }
 }
@@ -435,7 +339,6 @@ private fun BottomBar(page: String, onPageChange: (String) -> Unit) {
         Triple("movies", "🎬", "Фильмы"),
         Triple("settings", "⚙", "Ещё")
     )
-
     NavigationBar(containerColor = Color(0xFF0D1117)) {
         tabs.forEach { (id, icon, label) ->
             NavigationBarItem(
@@ -451,6 +354,7 @@ private fun BottomBar(page: String, onPageChange: (String) -> Unit) {
 @Composable
 private fun PlayerScreen(channel: Channel, onBack: () -> Unit) {
     val context = LocalContext.current
+    val activity = context as? ComponentActivity
     val player = remember(channel.url) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(channel.url))
@@ -459,30 +363,63 @@ private fun PlayerScreen(channel: Channel, onBack: () -> Unit) {
         }
     }
 
+    BackHandler(enabled = true) { onBack() }
+
+    DisposableEffect(Unit) {
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        activity?.let {
+            WindowCompat.setDecorFitsSystemWindows(it.window, false)
+            WindowInsetsControllerCompat(it.window, it.window.decorView).apply {
+                hide(WindowInsetsCompat.Type.systemBars())
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        }
+        onDispose {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity?.let {
+                WindowCompat.setDecorFitsSystemWindows(it.window, true)
+                WindowInsetsControllerCompat(it.window, it.window.decorView).show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
     DisposableEffect(player) {
         onDispose { player.release() }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        Text(
-            text = "‹  ${channel.name}",
-            color = Color.White,
-            fontSize = 18.sp,
-            modifier = Modifier
-                .clickable(onClick = onBack)
-                .padding(14.dp)
-        )
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
-            factory = { ctx -> PlayerView(ctx).apply { this.player = player } },
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    this.player = player
+                    keepScreenOn = true
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    controllerShowTimeoutMs = 3500
+                    controllerHideOnTouch = true
+                    setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                    post { shrinkSeekButtons(this) }
+                }
+            },
+            update = { view -> shrinkSeekButtons(view) },
+            modifier = Modifier.fillMaxSize()
         )
-        Text(
-            text = "● LIVE  ${channel.group}",
-            color = Color(0xFFFF4B4B),
-            modifier = Modifier.padding(16.dp)
-        )
+    }
+}
+
+private fun shrinkSeekButtons(playerView: PlayerView) {
+    val sizePx = (48 * playerView.resources.displayMetrics.density).toInt()
+    val paddingPx = (6 * playerView.resources.displayMetrics.density).toInt()
+    listOf(androidx.media3.ui.R.id.exo_rew, androidx.media3.ui.R.id.exo_ffwd).forEach { id ->
+        val button = playerView.findViewById<ImageButton>(id) ?: return@forEach
+        button.layoutParams = (button.layoutParams ?: ViewGroup.LayoutParams(sizePx, sizePx)).apply {
+            width = sizePx
+            height = sizePx
+        }
+        button.minimumWidth = sizePx
+        button.minimumHeight = sizePx
+        button.setPadding(paddingPx, paddingPx, paddingPx, paddingPx)
+        button.scaleX = 0.72f
+        button.scaleY = 0.72f
     }
 }
 
@@ -496,25 +433,17 @@ private fun parseM3u(text: String): List<Channel> {
     val result = mutableListOf<Channel>()
     var name = ""
     var group = ""
-
     text.lineSequence().forEach { raw ->
         val line = raw.trim()
         when {
             line.startsWith("#EXTINF:", ignoreCase = true) -> {
                 name = line.substringAfterLast(",").trim()
                 group = Regex("""group-title=\"([^\"]*)\"""", RegexOption.IGNORE_CASE)
-                    .find(line)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    .orEmpty()
+                    .find(line)?.groupValues?.getOrNull(1).orEmpty()
             }
-
             line.startsWith("#") || line.isBlank() -> Unit
-
             else -> {
-                if (name.isNotBlank()) {
-                    result += Channel(name = name, group = group, url = line)
-                }
+                if (name.isNotBlank()) result += Channel(name = name, group = group, url = line)
                 name = ""
                 group = ""
             }
@@ -533,19 +462,9 @@ private fun loadMoviesFromArchive(): List<Movie> {
                 val id = doc.optString("identifier")
                 val title = doc.optString("title")
                 val license = doc.optString("licenseurl")
-                val isOpenLicense = license.contains("creativecommons.org", true) ||
-                    license.contains("publicdomain", true)
-
+                val isOpenLicense = license.contains("creativecommons.org", true) || license.contains("publicdomain", true)
                 if (id.isNotBlank() && title.isNotBlank() && isOpenLicense) {
-                    add(
-                        Movie(
-                            id = id,
-                            title = title,
-                            year = doc.optString("year"),
-                            description = doc.optString("description").replace("\\n", " "),
-                            license = license
-                        )
-                    )
+                    add(Movie(id, title, doc.optString("year"), doc.optString("description").replace("\\n", " "), license))
                 }
             }
         }.distinctBy { it.id }
