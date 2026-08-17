@@ -31,125 +31,110 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Apply UI fixes
+      - name: Polish player and navigation icons
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
-
           p = Path('app/src/main/java/com/example/iptvplayer/MainActivity.kt')
           s = p.read_text()
 
-          # Fix the old Triple-based BottomBar without relying on exact whitespace.
-          s = re.sub(
-              r'listOf\(\s*Triple\("home",\s*"Главная"\),\s*Triple\("channels",\s*"ТВ"\),\s*Triple\("movies",\s*"Фильмы"\),\s*Triple\("settings",\s*"Ещё"\)\s*\)',
-              'listOf("home" to "Главная", "channels" to "ТВ", "movies" to "Фильмы", "settings" to "Ещё")',
-              s,
-              count=1,
-              flags=re.S,
-          )
+          def replace_block(src, start, end, replacement):
+              a = src.find(start)
+              if a < 0:
+                  raise SystemExit('start marker not found: ' + start)
+              b = src.find(end, a + len(start))
+              if b < 0:
+                  raise SystemExit('end marker not found: ' + end)
+              return src[:a] + replacement + src[b:]
 
-          # Store tvg-logo from M3U and use the real logo where available.
-          s = s.replace(
-              'data class Channel(val name: String, val group: String, val url: String, val userAgent: String = "")',
-              'data class Channel(val name: String, val group: String, val url: String, val userAgent: String = "", val logoUrl: String = "")',
-              1,
-          )
-          s = s.replace(
-              'val result = mutableListOf<Channel>(); var name = ""; var group = ""; var ua = ""',
-              'val result = mutableListOf<Channel>(); var name = ""; var group = ""; var ua = ""; var logo = ""',
-              1,
-          )
-          s = s.replace(
-              'group = Regex("""group-title=\\"([^\\"]*)\\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty(); ua = ""',
-              'group = Regex("""group-title=\\"([^\\"]*)\\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty(); logo = Regex("""tvg-logo=\\"([^\\"]*)\\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty(); ua = ""',
-              1,
-          )
-          s = s.replace(
-              'if (name.isNotBlank()) result += Channel(name, group, line, ua); name = ""; group = ""; ua = ""',
-              'if (name.isNotBlank()) result += Channel(name, group, line, ua, logo); name = ""; group = ""; ua = ""; logo = ""',
-              1,
-          )
-
-          # Replace the fallback channel-logo function with real tvg-logo + fallback.
-          logo_start = s.find('@Composable\nprivate fun ChannelLogo(index: Int, name: String)')
-          logo_end = s.find('@Composable\nprivate fun PlayerScreen', logo_start)
-          if logo_start >= 0 and logo_end > logo_start:
-              new_logo = '''@Composable
-private fun ChannelLogo(index: Int, name: String, logoUrl: String = "") {
-    Box(Modifier.size(42.dp).background(ICON_BG, RoundedCornerShape(11.dp)), Alignment.Center) {
-        if (logoUrl.isNotBlank()) {
-            AsyncImage(model = logoUrl, contentDescription = name, modifier = Modifier.size(34.dp))
-        } else {
-            val palettes = listOf(
-                listOf(Color(0xFF2E6CD4), Color(0xFF203C86)), listOf(Color(0xFF18A85C), Color(0xFF0E6D42)),
-                listOf(Color(0xFFE53935), Color(0xFF9E2222)), listOf(Color(0xFF4E7EA8), Color(0xFF243A5C)),
-                listOf(Color(0xFF5E9AD6), Color(0xFF284465)), listOf(Color(0xFFE34B32), Color(0xFF9B271A)),
-                listOf(Color(0xFFF08A22), Color(0xFF9B4E0B))
-            )
-            val colors = palettes[index % palettes.size]
-            val short = when {
-                name.contains("Крым", true) -> "24"
-                name.contains("Югра", true) -> "Ю"
-                name.contains("Липец", true) -> "◷"
-                name.contains("4 канал", true) -> "4"
-                name.length > 5 -> name.take(2).uppercase()
-                else -> name.take(1).uppercase()
+          s = replace_block(s, '@Composable\nprivate fun PlayerButtons', '@Composable\nprivate fun ErrorMessage', """@Composable
+private fun PlayerButtons(player: ExoPlayer, isPlaying: Boolean, onFullscreen: () -> Unit, modifier: Modifier) {
+    Row(modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier.size(38.dp)
+                .background(Color.Black.copy(.72f), CircleShape)
+                .clickable { if (player.isPlaying) player.pause() else player.play() },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(Modifier.size(19.dp)) {
+                val w = size.width
+                val h = size.height
+                if (isPlaying) {
+                    drawRoundRect(Color.White, Offset(w*.18f, h*.16f), Size(w*.23f, h*.68f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(w*.08f, w*.08f))
+                    drawRoundRect(Color.White, Offset(w*.59f, h*.16f), Size(w*.23f, h*.68f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(w*.08f, w*.08f))
+                } else {
+                    val play = Path().apply { moveTo(w*.28f, h*.14f); lineTo(w*.28f, h*.86f); lineTo(w*.80f, h*.50f); close() }
+                    drawPath(play, Color.White)
+                }
             }
-            Box(Modifier.size(34.dp).background(Brush.linearGradient(colors), RoundedCornerShape(9.dp)), Alignment.Center) {
-                Text(short, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = if (short.length > 1) 10.sp else 14.sp)
+        }
+        Box(
+            Modifier.size(36.dp)
+                .background(Color.Black.copy(.64f), CircleShape)
+                .clickable { onFullscreen() },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(Modifier.size(18.dp)) {
+                val w = size.width
+                val h = size.height
+                val sw = maxOf(1.6f, w*.11f)
+                val l = w*.13f
+                val r = w*.87f
+                val t = h*.13f
+                val b = h*.87f
+                val ix = w*.34f
+                val iy = h*.34f
+                drawLine(Color.White, Offset(l, iy), Offset(l, t), sw)
+                drawLine(Color.White, Offset(l, t), Offset(ix, t), sw)
+                drawLine(Color.White, Offset(r, iy), Offset(r, t), sw)
+                drawLine(Color.White, Offset(r, t), Offset(w-ix, t), sw)
+                drawLine(Color.White, Offset(l, h-iy), Offset(l, b), sw)
+                drawLine(Color.White, Offset(l, b), Offset(ix, b), sw)
+                drawLine(Color.White, Offset(r, h-iy), Offset(r, b), sw)
+                drawLine(Color.White, Offset(r, b), Offset(w-ix, b), sw)
             }
         }
     }
 }
+""")
 
-'''
-              s = s[:logo_start] + new_logo + s[logo_end:]
-          else:
-              raise SystemExit('ChannelLogo block not found')
-
-          # Use the same channel icon in the player list.
-          s = s.replace(
-              'Text("${nextIndex + 1}", color = PURPLE, fontWeight = FontWeight.Bold, modifier = Modifier.width(36.dp))',
-              'ChannelLogo(nextIndex, next.name, next.logoUrl); Text("${nextIndex + 1}", color = PURPLE, fontWeight = FontWeight.Bold, modifier = Modifier.width(36.dp))',
-              1,
-          )
-          s = s.replace(
-              'ChannelLogo(item.index, item.value.name)',
-              'ChannelLogo(item.index, item.value.name, item.value.logoUrl)',
-              1,
-          )
-
-          # Smaller player circles + centered glyphs.
-          s = s.replace(
-              'Modifier.size(46.dp).background(Color.Black.copy(.78f), CircleShape)',
-              'Modifier.size(38.dp).background(Color.Black.copy(.72f), CircleShape)',
-              1,
-          )
-          s = s.replace('Canvas(Modifier.size(46.dp))', 'Canvas(Modifier.size(20.dp))', 1)
-          s = s.replace(
-              'Modifier.size(40.dp).background(Color.Black.copy(.65f), CircleShape)',
-              'Modifier.size(36.dp).background(Color.Black.copy(.62f), CircleShape)',
-              1,
-          )
-          s = s.replace('Canvas(Modifier.size(40.dp))', 'Canvas(Modifier.size(19.dp))', 1)
-
-          # Standard-size bottom navigation glyphs; scale the existing drawing to the Canvas.
-          s = s.replace(
-              'Canvas(Modifier.size(24.dp))',
-              'Canvas(Modifier.size(26.dp).graphicsLayer { scaleX = 2.6f; scaleY = 2.6f })',
-              1,
-          )
-
-          # Scale the falling-person movie icon without redesigning the accepted artwork.
-          s = s.replace(
-              'Canvas(Modifier.fillMaxSize()) {',
-              'Canvas(Modifier.fillMaxSize().graphicsLayer { scaleX = 2.2f; scaleY = 2.2f }) {',
-              1,
-          )
+          s = replace_block(s, '@Composable\nprivate fun NavIcon', '@Composable\nprivate fun BottomBar', """@Composable
+private fun NavIcon(id: String, selected: Boolean) {
+    val tint = if (selected) Color.White else Color(0xFFC7CDD8)
+    Canvas(Modifier.size(26.dp)) {
+        val w = size.width
+        val h = size.height
+        when (id) {
+            "channels" -> {
+                drawRoundRect(tint, Offset(w*.10f, h*.18f), Size(w*.80f, h*.56f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(w*.11f, w*.11f), style = Stroke(width = w*.075f))
+                drawLine(tint, Offset(w*.28f, h*.85f), Offset(w*.72f, h*.85f), strokeWidth = w*.075f)
+                drawCircle(PURPLE, radius = w*.09f, center = Offset(w*.50f, h*.46f))
+            }
+            "movies" -> {
+                drawRoundRect(tint, Offset(w*.10f, h*.16f), Size(w*.80f, h*.62f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(w*.10f, w*.10f), style = Stroke(width = w*.075f))
+                drawLine(tint, Offset(w*.24f, h*.16f), Offset(w*.30f, h*.37f), strokeWidth = w*.065f)
+                drawLine(tint, Offset(w*.43f, h*.16f), Offset(w*.49f, h*.37f), strokeWidth = w*.065f)
+                drawLine(tint, Offset(w*.62f, h*.16f), Offset(w*.68f, h*.37f), strokeWidth = w*.065f)
+                val play = Path().apply { moveTo(w*.43f, h*.46f); lineTo(w*.43f, h*.70f); lineTo(w*.70f, h*.58f); close() }
+                drawPath(play, PURPLE)
+            }
+            else -> {
+                val heart = Path().apply {
+                    moveTo(w*.50f, h*.84f)
+                    cubicTo(w*.11f, h*.58f, w*.16f, h*.18f, w*.38f, h*.24f)
+                    cubicTo(w*.47f, h*.26f, w*.50f, h*.34f, w*.50f, h*.40f)
+                    cubicTo(w*.50f, h*.34f, w*.53f, h*.26f, w*.62f, h*.24f)
+                    cubicTo(w*.84f, h*.18f, w*.89f, h*.58f, w*.50f, h*.84f)
+                }
+                drawPath(heart, tint, style = Stroke(width = w*.075f))
+            }
+        }
+    }
+}
+""")
 
           p.write_text(s)
-          print('UI/build patch applied')
+          print('player/navigation icon patch applied')
           PY
 
       - name: Build debug APK
