@@ -23,10 +23,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 }
 
 kotlin {
@@ -78,7 +74,7 @@ val prepareSuppliedArtwork = tasks.register("prepareSuppliedArtwork") {
             )
         }"""
         if (!text.contains(old)) error("HomeBtn block not found")
-        source.writeText(text.replace(old, new, 1))
+        source.writeText(text.replace(old, new))
     }
 }
 
