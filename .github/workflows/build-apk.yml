@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Android 36 SDK
         run: |
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          yes | sdkmanager --licenses > /dev/null || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
       - name: Set up Gradle
@@ -31,110 +31,18 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Polish player and navigation icons
+      - name: Normalize Kotlin source
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p = Path('app/src/main/java/com/example/iptvplayer/MainActivity.kt')
           s = p.read_text()
-
-          def replace_block(src, start, end, replacement):
-              a = src.find(start)
-              if a < 0:
-                  raise SystemExit('start marker not found: ' + start)
-              b = src.find(end, a + len(start))
-              if b < 0:
-                  raise SystemExit('end marker not found: ' + end)
-              return src[:a] + replacement + src[b:]
-
-          s = replace_block(s, '@Composable\nprivate fun PlayerButtons', '@Composable\nprivate fun ErrorMessage', """@Composable
-private fun PlayerButtons(player: ExoPlayer, isPlaying: Boolean, onFullscreen: () -> Unit, modifier: Modifier) {
-    Row(modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier.size(38.dp)
-                .background(Color.Black.copy(.72f), CircleShape)
-                .clickable { if (player.isPlaying) player.pause() else player.play() },
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(Modifier.size(19.dp)) {
-                val w = size.width
-                val h = size.height
-                if (isPlaying) {
-                    drawRoundRect(Color.White, Offset(w*.18f, h*.16f), Size(w*.23f, h*.68f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(w*.08f, w*.08f))
-                    drawRoundRect(Color.White, Offset(w*.59f, h*.16f), Size(w*.23f, h*.68f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(w*.08f, w*.08f))
-                } else {
-                    val play = Path().apply { moveTo(w*.28f, h*.14f); lineTo(w*.28f, h*.86f); lineTo(w*.80f, h*.50f); close() }
-                    drawPath(play, Color.White)
-                }
-            }
-        }
-        Box(
-            Modifier.size(36.dp)
-                .background(Color.Black.copy(.64f), CircleShape)
-                .clickable { onFullscreen() },
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(Modifier.size(18.dp)) {
-                val w = size.width
-                val h = size.height
-                val sw = maxOf(1.6f, w*.11f)
-                val l = w*.13f
-                val r = w*.87f
-                val t = h*.13f
-                val b = h*.87f
-                val ix = w*.34f
-                val iy = h*.34f
-                drawLine(Color.White, Offset(l, iy), Offset(l, t), sw)
-                drawLine(Color.White, Offset(l, t), Offset(ix, t), sw)
-                drawLine(Color.White, Offset(r, iy), Offset(r, t), sw)
-                drawLine(Color.White, Offset(r, t), Offset(w-ix, t), sw)
-                drawLine(Color.White, Offset(l, h-iy), Offset(l, b), sw)
-                drawLine(Color.White, Offset(l, b), Offset(ix, b), sw)
-                drawLine(Color.White, Offset(r, h-iy), Offset(r, b), sw)
-                drawLine(Color.White, Offset(r, b), Offset(w-ix, b), sw)
-            }
-        }
-    }
-}
-""")
-
-          s = replace_block(s, '@Composable\nprivate fun NavIcon', '@Composable\nprivate fun BottomBar', """@Composable
-private fun NavIcon(id: String, selected: Boolean) {
-    val tint = if (selected) Color.White else Color(0xFFC7CDD8)
-    Canvas(Modifier.size(26.dp)) {
-        val w = size.width
-        val h = size.height
-        when (id) {
-            "channels" -> {
-                drawRoundRect(tint, Offset(w*.10f, h*.18f), Size(w*.80f, h*.56f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(w*.11f, w*.11f), style = Stroke(width = w*.075f))
-                drawLine(tint, Offset(w*.28f, h*.85f), Offset(w*.72f, h*.85f), strokeWidth = w*.075f)
-                drawCircle(PURPLE, radius = w*.09f, center = Offset(w*.50f, h*.46f))
-            }
-            "movies" -> {
-                drawRoundRect(tint, Offset(w*.10f, h*.16f), Size(w*.80f, h*.62f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(w*.10f, w*.10f), style = Stroke(width = w*.075f))
-                drawLine(tint, Offset(w*.24f, h*.16f), Offset(w*.30f, h*.37f), strokeWidth = w*.065f)
-                drawLine(tint, Offset(w*.43f, h*.16f), Offset(w*.49f, h*.37f), strokeWidth = w*.065f)
-                drawLine(tint, Offset(w*.62f, h*.16f), Offset(w*.68f, h*.37f), strokeWidth = w*.065f)
-                val play = Path().apply { moveTo(w*.43f, h*.46f); lineTo(w*.43f, h*.70f); lineTo(w*.70f, h*.58f); close() }
-                drawPath(play, PURPLE)
-            }
-            else -> {
-                val heart = Path().apply {
-                    moveTo(w*.50f, h*.84f)
-                    cubicTo(w*.11f, h*.58f, w*.16f, h*.18f, w*.38f, h*.24f)
-                    cubicTo(w*.47f, h*.26f, w*.50f, h*.34f, w*.50f, h*.40f)
-                    cubicTo(w*.50f, h*.34f, w*.53f, h*.26f, w*.62f, h*.24f)
-                    cubicTo(w*.84f, h*.18f, w*.89f, h*.58f, w*.50f, h*.84f)
-                }
-                drawPath(heart, tint, style = Stroke(width = w*.075f))
-            }
-        }
-    }
-}
-""")
-
+          old = 'listOf(Triple("home", "Главная"), Triple("channels", "ТВ"), Triple("movies", "Фильмы"), Triple("settings", "Ещё"))'
+          if old in s:
+              s = s.replace(old, 'listOf("home" to "Главная", "channels" to "ТВ", "movies" to "Фильмы", "settings" to "Ещё")', 1)
           p.write_text(s)
-          print('player/navigation icon patch applied')
+          print('source normalization complete')
           PY
 
       - name: Build debug APK
