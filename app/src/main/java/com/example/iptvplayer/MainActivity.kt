@@ -5,7 +5,6 @@ import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.widget.ImageButton
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -58,7 +57,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
@@ -68,14 +69,28 @@ import org.json.JSONObject
 import java.net.URL
 
 private const val PLAYLIST_URL = "https://raw.githubusercontent.com/Dimonovich/TV/Dimonovich/FREE/.m3u"
+private const val DEFAULT_USER_AGENT = "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36"
 private const val IA_SEARCH = "https://archive.org/advancedsearch.php?q=mediatype%3Amovies%20AND%20%28licenseurl%3Acreativecommons.org%20OR%20licenseurl%3Apublicdomain%29&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=description&fl%5B%5D=year&fl%5B%5D=licenseurl&rows=60&page=1&output=json"
+
 private val Bg = Color(0xFF080B10)
 private val Card = Color(0xFF121820)
 private val Purple = Color(0xFFA855F7)
 private val Muted = Color(0xFF8D98A8)
 
-data class Channel(val name: String, val group: String, val url: String)
-data class Movie(val id: String, val title: String, val year: String, val description: String, val license: String)
+data class Channel(
+    val name: String,
+    val group: String,
+    val url: String,
+    val userAgent: String = ""
+)
+
+data class Movie(
+    val id: String,
+    val title: String,
+    val year: String,
+    val description: String,
+    val license: String
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -239,31 +254,31 @@ private fun PlayerScreen(
     var showSettings by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableStateOf(1f) }
 
-    val player = remember {
-        ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
-        }
+    val playerKey = channel.url + "|" + channel.userAgent
+    val player = remember(playerKey) {
+        val httpFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent(channel.userAgent.ifBlank { DEFAULT_USER_AGENT })
+            .setAllowCrossProtocolRedirects(true)
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(httpFactory))
+            .build()
+            .apply { playWhenReady = true }
     }
 
-    LaunchedEffect(channel.url) {
-        player.stop()
-        player.clearMediaItems()
-        player.setMediaItem(MediaItem.fromUri(channel.url))
-        player.prepare()
-        player.playWhenReady = true
+    DisposableEffect(player) {
+        onDispose {
+            player.release()
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
     }
 
     BackHandler {
-        if (fullscreen) {
-            fullscreen = false
-        } else {
-            onBack()
-        }
+        if (fullscreen) fullscreen = false else onBack()
     }
 
     LaunchedEffect(fullscreen) {
         if (fullscreen) {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             WindowCompat.setDecorFitsSystemWindows(activity.window, false)
             WindowInsetsControllerCompat(activity.window, activity.window.decorView).apply {
                 hide(WindowInsetsCompat.Type.systemBars())
@@ -276,23 +291,21 @@ private fun PlayerScreen(
         }
     }
 
-    DisposableEffect(player) {
-        onDispose {
-            player.release()
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
-    }
-
     if (fullscreen) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
-                        player = player
+                        this.player = player
                         keepScreenOn = true
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         controllerShowTimeoutMs = 2500
                         controllerHideOnTouch = true
+                        setShowPreviousButton(false)
+                        setShowNextButton(false)
+                        setShowRewindButton(false)
+                        setShowFastForwardButton(false)
+                        setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { configurePlayerControls(this@apply) })
                         post { configurePlayerControls(this) }
                     }
                 },
@@ -326,11 +339,16 @@ private fun PlayerScreen(
                 AndroidView(
                     factory = { ctx ->
                         PlayerView(ctx).apply {
-                            player = player
+                            this.player = player
                             keepScreenOn = true
                             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                             controllerShowTimeoutMs = 2500
                             controllerHideOnTouch = true
+                            setShowPreviousButton(false)
+                            setShowNextButton(false)
+                            setShowRewindButton(false)
+                            setShowFastForwardButton(false)
+                            setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { configurePlayerControls(this@apply) })
                             post { configurePlayerControls(this) }
                         }
                     },
@@ -416,13 +434,11 @@ private fun PlayerOverlayButtons(
 }
 
 private fun configurePlayerControls(playerView: PlayerView) {
-    listOf(
-        androidx.media3.ui.R.id.exo_rew,
-        androidx.media3.ui.R.id.exo_ffwd,
-        androidx.media3.ui.R.id.exo_settings
-    ).forEach { id ->
-        playerView.findViewById<View>(id)?.visibility = View.GONE
-    }
+    playerView.findViewById<View>(androidx.media3.ui.R.id.exo_settings)?.visibility = View.GONE
+    playerView.findViewById<View>(androidx.media3.ui.R.id.exo_rew)?.visibility = View.GONE
+    playerView.findViewById<View>(androidx.media3.ui.R.id.exo_ffwd)?.visibility = View.GONE
+    playerView.findViewById<View>(androidx.media3.ui.R.id.exo_prev)?.visibility = View.GONE
+    playerView.findViewById<View>(androidx.media3.ui.R.id.exo_next)?.visibility = View.GONE
 }
 
 @Composable
@@ -476,18 +492,26 @@ private fun parseM3u(text: String): List<Channel> {
     val result = mutableListOf<Channel>()
     var name = ""
     var group = ""
+    var userAgent = ""
+
     text.lineSequence().forEach { raw ->
         val line = raw.trim()
         when {
             line.startsWith("#EXTINF:", true) -> {
                 name = line.substringAfterLast(",").trim()
-                group = Regex("""group-title=\"([^\"]*)\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty()
+                group = Regex("""group-title=\"([^\"]*)\"""", RegexOption.IGNORE_CASE)
+                    .find(line)?.groupValues?.getOrNull(1).orEmpty()
+                userAgent = ""
+            }
+            line.startsWith("#EXTVLCOPT:http-user-agent=", true) -> {
+                userAgent = line.substringAfter("=", "").trim()
             }
             line.startsWith("#") || line.isBlank() -> Unit
             else -> {
-                if (name.isNotBlank()) result += Channel(name, group, line)
+                if (name.isNotBlank()) result += Channel(name, group, line, userAgent)
                 name = ""
                 group = ""
+                userAgent = ""
             }
         }
     }
