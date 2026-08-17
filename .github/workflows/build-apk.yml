@@ -34,6 +34,9 @@ jobs:
       - name: Apply player UI patch
         run: python3 scripts/prepare_artwork.py
 
+      - name: Fix compile issues
+        run: python3 scripts/fix_compile.py
+
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
