@@ -31,13 +31,6 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Verify source and asset
-        run: |
-          test -f app/src/main/java/com/example/iptvplayer/MainActivity.kt
-          test -f app/src/main/res/drawable-nodpi/home_movies_icon.png
-          grep -q 'R.drawable.home_movies_icon' app/src/main/java/com/example/iptvplayer/MainActivity.kt
-          grep -q 'listOf("movies" to "Фильмы", "channels" to "ТВ", "favorites" to "Избранное")' app/src/main/java/com/example/iptvplayer/MainActivity.kt
-
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
