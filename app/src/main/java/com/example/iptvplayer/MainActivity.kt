@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,7 +56,7 @@ private val BG = Color(0xFF080B10)
 private val CARD = Color(0xFF121820)
 private val PURPLE = Color(0xFFA855F7)
 private val MUTED = Color(0xFF8D98A8)
-private val ICON_BG = Color(0xFF1B2433)
+private val ICON_BG = Color(0xFF172131)
 
 data class Channel(val name: String, val group: String, val url: String, val userAgent: String = "")
 data class Movie(val id: String, val title: String, val year: String, val description: String, val license: String)
@@ -127,49 +128,61 @@ private fun Home(tv: () -> Unit, movie: () -> Unit) {
 
 @Composable
 private fun HomeIcon(kind: String) {
+    Box(Modifier.size(68.dp), Alignment.Center) {
+        if (kind == "tv") {
+            Box(Modifier.size(68.dp)) {
+                MiniChannelTile("1", Color(0xFF2E6CD4), 6.dp, 10.dp, -12f)
+                MiniChannelTile("М", Color(0xFFE53935), 28.dp, 6.dp, 8f)
+                MiniChannelTile("НТВ", Color(0xFF1E8C47), 14.dp, 31.dp, -5f)
+                MiniChannelTile("ТВЦ", Color(0xFF514A92), 39.dp, 28.dp, 10f)
+                MiniChannelTile("5", Color(0xFFD7DCE8), 27.dp, 48.dp, -4f, Color(0xFF5B2A86))
+            }
+        } else {
+            Canvas(Modifier.size(68.dp)) {
+                val shadow = Color.Black.copy(alpha = .35f)
+                drawCircle(shadow, radius = 18f, center = Offset(27f, 47f))
+                drawCircle(Color(0xFF68758B), radius = 17f, center = Offset(25f, 44f))
+                drawCircle(Color(0xFF192231), radius = 13f, center = Offset(25f, 44f))
+                for (hole in listOf(Offset(25f, 36f), Offset(32f, 44f), Offset(25f, 52f), Offset(18f, 44f))) {
+                    drawCircle(Color(0xFF7A8AA0), radius = 2.6f, center = hole)
+                }
+                drawRoundRect(
+                    brush = Brush.linearGradient(listOf(Color(0xFF202A38), Color(0xFF6E7D91))),
+                    topLeft = Offset(5f, 24f),
+                    size = Size(40f, 8f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f)
+                )
+                drawLine(Color.White.copy(.75f), Offset(10f, 25f), Offset(14f, 31f), strokeWidth = 2.5f)
+                drawLine(Color.White.copy(.75f), Offset(20f, 25f), Offset(24f, 31f), strokeWidth = 2.5f)
+                drawLine(Color.White.copy(.75f), Offset(30f, 25f), Offset(34f, 31f), strokeWidth = 2.5f)
+                drawRoundRect(
+                    brush = Brush.linearGradient(listOf(Color(0xFF8B4A9C), Color(0xFFB56CF0))),
+                    topLeft = Offset(8f, 55f),
+                    size = Size(25f, 11f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f)
+                )
+                drawCircle(Color(0xFFF2D0A1), radius = 5f, center = Offset(52f, 17f))
+                drawLine(Color(0xFFF2D0A1), Offset(50f, 22f), Offset(41f, 34f), strokeWidth = 4f)
+                drawLine(Color(0xFFF2D0A1), Offset(41f, 34f), Offset(34f, 29f), strokeWidth = 3.5f)
+                drawLine(Color(0xFFF2D0A1), Offset(41f, 34f), Offset(51f, 31f), strokeWidth = 3.5f)
+                drawLine(Color(0xFFF2D0A1), Offset(42f, 35f), Offset(35f, 45f), strokeWidth = 3.5f)
+                drawLine(Color(0xFFF2D0A1), Offset(42f, 35f), Offset(52f, 42f), strokeWidth = 3.5f)
+                drawCircle(Color(0xFF6D28D9).copy(.4f), radius = 3f, center = Offset(50f, 17f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniChannelTile(label: String, color: Color, x: Dp, y: Dp, rotation: Float, textColor: Color = Color.White) {
     Box(
-        Modifier.size(54.dp).background(ICON_BG, RoundedCornerShape(15.dp)),
+        Modifier.offset(x, y).size(30.dp)
+            .background(Brush.linearGradient(listOf(color.copy(alpha = .96f), color.copy(alpha = .55f))), RoundedCornerShape(7.dp))
+            .graphicsLayer { rotationZ = rotation },
         Alignment.Center
     ) {
-        Canvas(Modifier.size(54.dp)) {
-            val white = Color.White
-            val purple = PURPLE
-            if (kind == "tv") {
-                drawRoundRect(
-                    color = white,
-                    topLeft = Offset(11f, 14f),
-                    size = Size(32f, 22f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(5f, 5f),
-                    style = Stroke(width = 2.8f)
-                )
-                drawLine(white, Offset(22f, 10f), Offset(27f, 14f), strokeWidth = 2.8f)
-                drawLine(white, Offset(32f, 10f), Offset(27f, 14f), strokeWidth = 2.8f)
-                drawLine(white, Offset(22f, 40f), Offset(32f, 40f), strokeWidth = 2.8f)
-                drawCircle(purple, radius = 2.5f, center = Offset(27f, 25f))
-            } else {
-                drawRoundRect(
-                    color = white,
-                    topLeft = Offset(10f, 10f),
-                    size = Size(34f, 34f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(5f, 5f),
-                    style = Stroke(width = 2.8f)
-                )
-                drawLine(white, Offset(17f, 11f), Offset(17f, 43f), strokeWidth = 2.2f)
-                drawLine(white, Offset(37f, 11f), Offset(37f, 43f), strokeWidth = 2.2f)
-                drawCircle(purple, radius = 2.1f, center = Offset(13f, 16f))
-                drawCircle(purple, radius = 2.1f, center = Offset(13f, 27f))
-                drawCircle(purple, radius = 2.1f, center = Offset(13f, 38f))
-                drawCircle(purple, radius = 2.1f, center = Offset(41f, 16f))
-                drawCircle(purple, radius = 2.1f, center = Offset(41f, 27f))
-                drawCircle(purple, radius = 2.1f, center = Offset(41f, 38f))
-                val play = Path().apply {
-                    moveTo(23f, 19f)
-                    lineTo(23f, 35f)
-                    lineTo(36f, 27f)
-                    close()
-                }
-                drawPath(play, purple)
-            }
+        Box(Modifier.fillMaxSize().padding(1.dp).background(Color.Black.copy(.18f), RoundedCornerShape(6.dp)), Alignment.Center) {
+            Text(label, color = textColor, fontSize = if (label.length > 2) 6.sp else 12.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
@@ -185,7 +198,7 @@ private fun HomeBtn(kind: String, title: String, sub: String, on: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         HomeIcon(kind)
-        Column(Modifier.padding(start = 14.dp).weight(1f)) {
+        Column(Modifier.padding(start = 8.dp).weight(1f)) {
             Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Text(sub, color = MUTED, fontSize = 12.sp)
         }
@@ -214,14 +227,44 @@ private fun ChannelRow(index: Int, c: Channel, on: (Int) -> Unit) {
         Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(14.dp)).clickable { on(index) }.padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(48.dp).background(ICON_BG, RoundedCornerShape(12.dp)), Alignment.Center) {
-            Text("${index + 1}", color = Color.White, fontWeight = FontWeight.Bold)
+        Box(Modifier.size(42.dp).background(ICON_BG, RoundedCornerShape(11.dp)), Alignment.Center) {
+            ChannelLogo(index, c.name)
         }
-        Column(Modifier.padding(start = 12.dp).weight(1f)) {
+        Column(Modifier.padding(start = 10.dp).weight(1f)) {
             Text(c.name, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(c.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 12.sp)
         }
         Text("▶", color = PURPLE)
+    }
+}
+
+@Composable
+private fun ChannelLogo(index: Int, name: String) {
+    val palettes = listOf(
+        listOf(Color(0xFF2E6CD4), Color(0xFF203C86)),
+        listOf(Color(0xFF18A85C), Color(0xFF0E6D42)),
+        listOf(Color(0xFFE53935), Color(0xFF9E2222)),
+        listOf(Color(0xFF4E7EA8), Color(0xFF243A5C)),
+        listOf(Color(0xFF5E9AD6), Color(0xFF284465)),
+        listOf(Color(0xFFE34B32), Color(0xFF9B271A)),
+        listOf(Color(0xFFF08A22), Color(0xFF9B4E0B))
+    )
+    val colors = palettes[index % palettes.size]
+    val short = when {
+        name.contains("Крым", true) -> "24"
+        name.contains("Югра", true) -> "Ю"
+        name.contains("Липец", true) -> "◷"
+        name.contains("4 канал", true) -> "4"
+        name.length > 5 -> name.take(2).uppercase()
+        else -> name.take(1).uppercase()
+    }
+    Box(
+        Modifier.size(30.dp)
+            .background(Brush.linearGradient(colors), RoundedCornerShape(8.dp))
+            .graphicsLayer { rotationZ = if (index % 2 == 0) -3f else 3f },
+        Alignment.Center
+    ) {
+        Text(short, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = if (short.length > 1) 10.sp else 14.sp)
     }
 }
 
@@ -301,15 +344,18 @@ private fun PlayerScreen(channels: List<Channel>, index: Int, onSelect: (Int) ->
                 itemsIndexed(channels.drop(index + 1)) { offset, next ->
                     val nextIndex = index + 1 + offset
                     Row(
-                        Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(13.dp)).clickable { onSelect(nextIndex) }.padding(12.dp),
+                        Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(13.dp)).clickable { onSelect(nextIndex) }.padding(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("${nextIndex + 1}", color = PURPLE, fontWeight = FontWeight.Bold, modifier = Modifier.width(36.dp))
-                        Column(Modifier.weight(1f)) {
+                        Text("${nextIndex + 1}", color = PURPLE, fontWeight = FontWeight.Bold, modifier = Modifier.width(34.dp))
+                        ChannelLogo(nextIndex, next.name)
+                        Column(Modifier.padding(start = 10.dp).weight(1f)) {
                             Text(next.name, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(next.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 11.sp)
                         }
-                        Text("▶", color = PURPLE)
+                        Box(Modifier.size(34.dp).background(PURPLE.copy(.92f), CircleShape), Alignment.Center) {
+                            Text("▶", color = Color.White, fontSize = 13.sp)
+                        }
                     }
                 }
             }
@@ -339,32 +385,32 @@ private fun VideoView(player: ExoPlayer, zoom: Boolean, modifier: Modifier) {
 
 @Composable
 private fun PlayerButtons(player: ExoPlayer, isPlaying: Boolean, fullscreen: Boolean, onFullscreen: () -> Unit, modifier: Modifier) {
-    Row(modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
-            Modifier.size(54.dp).background(Color.Black.copy(.78f), CircleShape).clickable { if (player.isPlaying) player.pause() else player.play() },
+            Modifier.size(46.dp).background(Color.Black.copy(.72f), CircleShape).clickable { if (player.isPlaying) player.pause() else player.play() },
             Alignment.Center
         ) {
-            Canvas(Modifier.size(54.dp)) {
+            Canvas(Modifier.size(46.dp)) {
                 if (isPlaying) {
-                    drawRoundRect(Color.White, topLeft = Offset(19f, 16f), size = Size(6f, 22f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f))
-                    drawRoundRect(Color.White, topLeft = Offset(29f, 16f), size = Size(6f, 22f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f))
+                    drawRoundRect(Color.White, topLeft = Offset(16f, 13f), size = Size(5f, 20f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.5f, 2.5f))
+                    drawRoundRect(Color.White, topLeft = Offset(25f, 13f), size = Size(5f, 20f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.5f, 2.5f))
                 } else {
-                    val p = Path().apply { moveTo(21f, 15f); lineTo(21f, 39f); lineTo(39f, 27f); close() }
+                    val p = Path().apply { moveTo(18f, 12f); lineTo(18f, 34f); lineTo(35f, 23f); close() }
                     drawPath(p, Color.White)
                 }
             }
         }
-        Box(Modifier.size(46.dp).background(Color.Black.copy(.65f), CircleShape).clickable { onFullscreen() }, Alignment.Center) {
-            Canvas(Modifier.size(46.dp)) {
-                val w = 3.2f
-                drawLine(Color.White, Offset(14f, 20f), Offset(14f, 14f), strokeWidth = w)
-                drawLine(Color.White, Offset(14f, 14f), Offset(20f, 14f), strokeWidth = w)
-                drawLine(Color.White, Offset(32f, 14f), Offset(38f, 14f), strokeWidth = w)
-                drawLine(Color.White, Offset(38f, 14f), Offset(38f, 20f), strokeWidth = w)
-                drawLine(Color.White, Offset(14f, 34f), Offset(14f, 40f), strokeWidth = w)
-                drawLine(Color.White, Offset(14f, 40f), Offset(20f, 40f), strokeWidth = w)
-                drawLine(Color.White, Offset(32f, 40f), Offset(38f, 40f), strokeWidth = w)
-                drawLine(Color.White, Offset(38f, 40f), Offset(38f, 34f), strokeWidth = w)
+        Box(Modifier.size(40.dp).background(Color.Black.copy(.62f), CircleShape).clickable { onFullscreen() }, Alignment.Center) {
+            Canvas(Modifier.size(40.dp)) {
+                val w = 2.7f
+                drawLine(Color.White, Offset(12f, 17f), Offset(12f, 12f), strokeWidth = w)
+                drawLine(Color.White, Offset(12f, 12f), Offset(17f, 12f), strokeWidth = w)
+                drawLine(Color.White, Offset(23f, 12f), Offset(28f, 12f), strokeWidth = w)
+                drawLine(Color.White, Offset(28f, 12f), Offset(28f, 17f), strokeWidth = w)
+                drawLine(Color.White, Offset(12f, 23f), Offset(12f, 28f), strokeWidth = w)
+                drawLine(Color.White, Offset(12f, 28f), Offset(17f, 28f), strokeWidth = w)
+                drawLine(Color.White, Offset(23f, 28f), Offset(28f, 28f), strokeWidth = w)
+                drawLine(Color.White, Offset(28f, 28f), Offset(28f, 23f), strokeWidth = w)
             }
         }
     }
@@ -434,9 +480,12 @@ private fun NavIcon(id: String, selected: Boolean) {
                 drawPath(play, PURPLE)
             }
             else -> {
-                drawCircle(tint, 3f, Offset(6f, 12f))
-                drawCircle(tint, 3f, Offset(12f, 12f))
-                drawCircle(tint, 3f, Offset(18f, 12f))
+                drawLine(tint, Offset(5f, 7f), Offset(19f, 7f), strokeWidth = 2.2f)
+                drawLine(tint, Offset(5f, 12f), Offset(19f, 12f), strokeWidth = 2.2f)
+                drawLine(tint, Offset(5f, 17f), Offset(19f, 17f), strokeWidth = 2.2f)
+                drawCircle(tint, 1.5f, Offset(5f, 7f))
+                drawCircle(tint, 1.5f, Offset(5f, 12f))
+                drawCircle(tint, 1.5f, Offset(5f, 17f))
             }
         }
     }
