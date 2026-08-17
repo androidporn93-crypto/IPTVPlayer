@@ -17,7 +17,18 @@ for src_name, dst_name in {
 source = ROOT / 'app/src/main/java/com/example/iptvplayer/MainActivity.kt'
 text = source.read_text()
 
-home_old = '''        if (kind == "movie") {
+# Home cards: use the supplied images directly instead of the old placeholder icons.
+home_old = '''        if (kind == "movie") Image(painterResource(R.drawable.home_movies_icon), "Фильмы", Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))) else ThreeDHomeIcon(kind, Modifier.size(94.dp))'''
+home_new = '''        Image(
+            painter = painterResource(if (kind == "movie") R.drawable.movies_photo else R.drawable.iptv_channels_photo),
+            contentDescription = title,
+            modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
+        )'''
+if home_old in text:
+    text = text.replace(home_old, home_new, 1)
+
+# Also support the older multi-line HomeBtn variant.
+home_old_multiline = '''        if (kind == "movie") {
             Image(
                 painter = painterResource(R.drawable.home_movies_icon),
                 contentDescription = "Фильмы",
@@ -26,22 +37,10 @@ home_old = '''        if (kind == "movie") {
         } else {
             ThreeDHomeIcon(kind, Modifier.size(94.dp))
         }'''
-home_new = '''        if (kind == "movie") {
-            Image(
-                painter = painterResource(R.drawable.movies_photo),
-                contentDescription = "Фильмы",
-                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
-            )
-        } else {
-            Image(
-                painter = painterResource(R.drawable.iptv_channels_photo),
-                contentDescription = "ТВ каналы",
-                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
-            )
-        }'''
-if home_old in text:
-    text = text.replace(home_old, home_new, 1)
+if home_old_multiline in text:
+    text = text.replace(home_old_multiline, home_new, 1)
 
+# Keep the refined player controls from the working build.
 fullscreen_old = '''            if (showControls) {
                 PlayCircleButton(58.dp) { if (player.isPlaying) player.pause() else player.play(); showControls = true; controlsTick++ }
                 Box(Modifier.align(Alignment.Center)) {
@@ -91,57 +90,64 @@ portrait_new = '''                if (showControls) {
 if portrait_old in text:
     text = text.replace(portrait_old, portrait_new, 1)
 
-fullscreen_button_old_start = '@Composable\nprivate fun FullscreenButton('
-heart_button_old_start = '@Composable\nprivate fun HeartButton('
-fs_start = text.find(fullscreen_button_old_start)
-heart_start = text.find(heart_button_old_start, fs_start)
-video_start = text.find('@Composable\nprivate fun VideoView', heart_start)
-if fs_start < 0 or heart_start < 0 or video_start < 0:
-    raise SystemExit('Player button definitions not found')
-button_defs = '''@Composable
-private fun FullscreenButton(buttonSize: Dp = 46.dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
-        modifier.size(buttonSize)
-            .background(Color.Black.copy(.65f), CircleShape)
-            .clickable(onClick = onClick),
-        Alignment.Center
-    ) {
-        Text("⛶", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+# Replace the existing ChannelLogo with channel-aware local branding.
+logo_start = text.find('@Composable\nprivate fun ChannelLogo(')
+player_start = text.find('@Composable\nprivate fun PlayerScreen', logo_start)
+if logo_start >= 0 and player_start > logo_start:
+    logo_new = '''@Composable
+private fun ChannelLogo(index: Int, name: String, size: Dp = 40.dp) {
+    val key = name.lowercase()
+    val colors = when {
+        key.contains("россия 24") -> listOf(Color(0xFF3D73D8), Color(0xFF153A9A))
+        key.contains("россия-к") || key.contains("россия к") -> listOf(Color(0xFF27B56B), Color(0xFF08733F))
+        key.contains("россия 1") -> listOf(Color(0xFFE73538), Color(0xFF9D111C))
+        key.contains("нтв хит") -> listOf(Color(0xFF5B88B8), Color(0xFF274B78))
+        key.contains("нтв сериал") -> listOf(Color(0xFF4F83B9), Color(0xFF264A75))
+        key.contains("нтв-право") || key.contains("нтв право") -> listOf(Color(0xFFE7442D), Color(0xFF9E2418))
+        key.contains("нтв стиль") -> listOf(Color(0xFFF08A22), Color(0xFF9B4E0B))
+        key.contains("первый канал") -> listOf(Color(0xFFE43B3F), Color(0xFF9D1D25))
+        else -> listOf(Color(0xFF4A74A8), Color(0xFF263A57))
     }
-}
-
-@Composable
-private fun HeartButton(favorite: Boolean, buttonSize: Dp = 42.dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
-        modifier.size(buttonSize)
-            .background(Color.Black.copy(.62f), CircleShape)
-            .clickable(onClick = onClick),
+        Modifier.size(size).background(Brush.linearGradient(colors), RoundedCornerShape(10.dp)),
         Alignment.Center
     ) {
-        Canvas(Modifier.size(buttonSize * 0.56f)) {
-            val w = size.width
-            val h = size.height
-            val path = Path().apply {
-                moveTo(w * 0.50f, h * 0.90f)
-                cubicTo(w * 0.44f, h * 0.83f, w * 0.13f, h * 0.62f, w * 0.12f, h * 0.39f)
-                cubicTo(w * 0.11f, h * 0.20f, w * 0.23f, h * 0.08f, w * 0.36f, h * 0.13f)
-                cubicTo(w * 0.44f, h * 0.16f, w * 0.48f, h * 0.23f, w * 0.50f, h * 0.30f)
-                cubicTo(w * 0.52f, h * 0.23f, w * 0.56f, h * 0.16f, w * 0.64f, h * 0.13f)
-                cubicTo(w * 0.77f, h * 0.08f, w * 0.89f, h * 0.20f, w * 0.88f, h * 0.39f)
-                cubicTo(w * 0.87f, h * 0.62f, w * 0.56f, h * 0.83f, w * 0.50f, h * 0.90f)
-                close()
+        when {
+            key.contains("россия 24") -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("РОССИЯ", color = Color.White, fontSize = (size.value * 0.20f).sp, fontWeight = FontWeight.Bold)
+                Text("24", color = Color.White, fontSize = (size.value * 0.36f).sp, fontWeight = FontWeight.ExtraBold)
             }
-            if (favorite) {
-                drawPath(path, color = PURPLE)
-            } else {
-                drawPath(path, color = Color.White, style = Stroke(width = 2.8f))
+            key.contains("россия-к") || key.contains("россия к") -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("РОССИЯ", color = Color.White, fontSize = (size.value * 0.18f).sp, fontWeight = FontWeight.Bold)
+                Text("К", color = Color.White, fontSize = (size.value * 0.38f).sp, fontWeight = FontWeight.ExtraBold)
             }
+            key.contains("россия 1") -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("РОССИЯ", color = Color.White, fontSize = (size.value * 0.17f).sp, fontWeight = FontWeight.Bold)
+                Text("1", color = Color.White, fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.Black)
+            }
+            key.contains("нтв") -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("НТВ", color = Color.White, fontSize = (size.value * 0.28f).sp, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    when {
+                        key.contains("хит") -> "ХИТ"
+                        key.contains("сериал") -> "СЕРИАЛ"
+                        key.contains("право") -> "ПРАВО"
+                        key.contains("стиль") -> "СТИЛЬ"
+                        else -> ""
+                    },
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontSize = (size.value * 0.13f).sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            key.contains("первый канал") -> Text("1", color = Color.White, fontSize = (size.value * 0.46f).sp, fontWeight = FontWeight.Black)
+            else -> Text(name.take(2).uppercase(), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = (size.value * 0.26f).sp)
         }
     }
 }
 
 '''
-text = text[:fs_start] + button_defs + text[video_start:]
+    text = text[:logo_start] + logo_new + text[player_start:]
 
 source.write_text(text)
-print('Artwork and player controls patched successfully')
+print('Artwork, channel logos and player controls patched successfully')
