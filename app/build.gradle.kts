@@ -10,29 +10,27 @@ plugins {
 android {
     namespace = "com.example.iptvplayer"
     compileSdk = 36
-
     defaultConfig {
         applicationId = "com.example.iptvplayer"
         minSdk = 23
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.2"
     }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
-kotlin {
-    jvmToolchain(17)
-}
+kotlin { jvmToolchain(17) }
 
 val prepareSuppliedArtwork = tasks.register("prepareSuppliedArtwork") {
+    inputs.file(layout.projectDirectory.file("src/main/assets/hero_tv.png.b64"))
     inputs.file(layout.projectDirectory.file("src/main/assets/iptv_channels_photo.webp.b64"))
     inputs.file(layout.projectDirectory.file("src/main/assets/movies_photo.webp.b64"))
     outputs.files(
+        layout.projectDirectory.file("src/main/res/drawable-nodpi/hero_tv.png"),
         layout.projectDirectory.file("src/main/res/drawable-nodpi/iptv_channels_photo.webp"),
         layout.projectDirectory.file("src/main/res/drawable-nodpi/movies_photo.webp")
     )
@@ -40,8 +38,8 @@ val prepareSuppliedArtwork = tasks.register("prepareSuppliedArtwork") {
         val assetsDir = file("src/main/assets")
         val drawableDir = file("src/main/res/drawable-nodpi")
         drawableDir.mkdirs()
-
         mapOf(
+            "hero_tv.png.b64" to "hero_tv.png",
             "iptv_channels_photo.webp.b64" to "iptv_channels_photo.webp",
             "movies_photo.webp.b64" to "movies_photo.webp"
         ).forEach { (sourceName, targetName) ->
@@ -51,9 +49,7 @@ val prepareSuppliedArtwork = tasks.register("prepareSuppliedArtwork") {
     }
 }
 
-tasks.matching { it.name == "preBuild" || it.name.endsWith("Kotlin") || it.name.contains("Kotlin") }.configureEach {
-    dependsOn(prepareSuppliedArtwork)
-}
+tasks.matching { it.name == "preBuild" || it.name.endsWith("Kotlin") || it.name.contains("Kotlin") }.configureEach { dependsOn(prepareSuppliedArtwork) }
 
 dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
