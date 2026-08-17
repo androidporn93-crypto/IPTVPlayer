@@ -92,5 +92,74 @@ if portrait_old not in text:
     raise SystemExit('Portrait control block not found')
 text = text.replace(portrait_old, portrait_new, 1)
 
+fullscreen_button_old = '''@Composable
+private fun FullscreenButton(size: Dp = 46.dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.size(size).background(Color.Black.copy(.65f), CircleShape).clickable(onClick = onClick), Alignment.Center) {
+        Canvas(Modifier.size(size * .40f)) {
+            val sw = 2.2f
+            drawLine(Color.White, Offset(2f, 7f), Offset(2f, 2f), sw); drawLine(Color.White, Offset(2f, 2f), Offset(7f, 2f), sw)
+            drawLine(Color.White, Offset(size.width - 7f, 2f), Offset(size.width - 2f, 2f), sw); drawLine(Color.White, Offset(size.width - 2f, 2f), Offset(size.width - 2f, 7f), sw)
+            drawLine(Color.White, Offset(2f, size.height - 7f), Offset(2f, size.height - 2f), sw); drawLine(Color.White, Offset(2f, size.height - 2f), Offset(7f, size.height - 2f), sw)
+            drawLine(Color.White, Offset(size.width - 7f, size.height - 2f), Offset(size.width - 2f, size.height - 2f), sw); drawLine(Color.White, Offset(size.width - 2f, size.height - 2f), Offset(size.width - 2f, size.height - 7f), sw)
+        }
+    }
+}'''
+fullscreen_button_new = '''@Composable
+private fun FullscreenButton(buttonSize: Dp = 46.dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.size(buttonSize).background(Color.Black.copy(.65f), CircleShape).clickable(onClick = onClick), Alignment.Center) {
+        Canvas(Modifier.size(buttonSize * .40f)) {
+            val sw = 2.2f
+            val w = this.size.width
+            val h = this.size.height
+            drawLine(Color.White, Offset(2f, 7f), Offset(2f, 2f), sw); drawLine(Color.White, Offset(2f, 2f), Offset(7f, 2f), sw)
+            drawLine(Color.White, Offset(w - 7f, 2f), Offset(w - 2f, 2f), sw); drawLine(Color.White, Offset(w - 2f, 2f), Offset(w - 2f, 7f), sw)
+            drawLine(Color.White, Offset(2f, h - 7f), Offset(2f, h - 2f), sw); drawLine(Color.White, Offset(2f, h - 2f), Offset(7f, h - 2f), sw)
+            drawLine(Color.White, Offset(w - 7f, h - 2f), Offset(w - 2f, h - 2f), sw); drawLine(Color.White, Offset(w - 2f, h - 2f), Offset(w - 2f, h - 7f), sw)
+        }
+    }
+}'''
+if fullscreen_button_old not in text:
+    raise SystemExit('FullscreenButton definition not found')
+text = text.replace(fullscreen_button_old, fullscreen_button_new, 1)
+
+heart_button_old = '''@Composable
+private fun HeartButton(favorite: Boolean, size: Dp = 42.dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.size(size).background(Color.Black.copy(.62f), CircleShape).clickable(onClick = onClick), Alignment.Center) {
+        Canvas(Modifier.size(size * .48f)) {
+            val w = size.width; val h = size.height
+            val heart = Path().apply {
+                moveTo(w * .50f, h * .88f)
+                cubicTo(w * .08f, h * .58f, w * .12f, h * .15f, w * .38f, h * .22f)
+                cubicTo(w * .47f, h * .24f, w * .50f, h * .34f, w * .50f, h * .40f)
+                cubicTo(w * .50f, h * .34f, w * .53f, h * .24f, w * .62f, h * .22f)
+                cubicTo(w * .88f, h * .15f, w * .92f, h * .58f, w * .50f, h * .88f)
+            }
+            drawPath(heart, if (favorite) PURPLE else Color.White, style = Stroke(width = 3.0f))
+            if (favorite) drawPath(heart, PURPLE)
+        }
+    }
+}'''
+heart_button_new = '''@Composable
+private fun HeartButton(favorite: Boolean, buttonSize: Dp = 42.dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.size(buttonSize).background(Color.Black.copy(.62f), CircleShape).clickable(onClick = onClick), Alignment.Center) {
+        Canvas(Modifier.size(buttonSize * .48f)) {
+            val w = this.size.width
+            val h = this.size.height
+            val heart = Path().apply {
+                moveTo(w * .50f, h * .88f)
+                cubicTo(w * .08f, h * .58f, w * .12f, h * .15f, w * .38f, h * .22f)
+                cubicTo(w * .47f, h * .24f, w * .50f, h * .34f, w * .50f, h * .40f)
+                cubicTo(w * .50f, h * .34f, w * .53f, h * .24f, w * .62f, h * .22f)
+                cubicTo(w * .88f, h * .15f, w * .92f, h * .58f, w * .50f, h * .88f)
+            }
+            drawPath(heart, if (favorite) PURPLE else Color.White, style = Stroke(width = 3.0f))
+            if (favorite) drawPath(heart, PURPLE)
+        }
+    }
+}'''
+if heart_button_old not in text:
+    raise SystemExit('HeartButton definition not found')
+text = text.replace(heart_button_old, heart_button_new, 1)
+
 source.write_text(text)
 print('Artwork and player controls patched successfully')
