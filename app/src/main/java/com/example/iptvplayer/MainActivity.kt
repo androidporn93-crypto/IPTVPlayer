@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,15 +21,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -136,80 +136,50 @@ private fun Home(tv: () -> Unit, movie: () -> Unit) {
 @Composable
 private fun HomeBtn(kind: String, title: String, sub: String, on: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 5.dp).background(CARD, RoundedCornerShape(16.dp)).clickable(onClick = on).padding(12.dp),
+        Modifier.fillMaxWidth().height(124.dp).padding(vertical = 5.dp)
+            .background(CARD, RoundedCornerShape(16.dp)).clickable(onClick = on).padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ThreeDHomeIcon(kind, Modifier.size(62.dp))
-        Column(Modifier.padding(start = 8.dp).weight(1f)) {
-            Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            Text(sub, color = MUTED, fontSize = 12.sp)
+        if (kind == "movie") {
+            Image(
+                painter = painterResource(R.drawable.home_movies_icon),
+                contentDescription = "Фильмы",
+                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
+            )
+        } else {
+            ThreeDHomeIcon(kind, Modifier.size(94.dp))
         }
-        Text("›", color = PURPLE, fontSize = 28.sp)
+        Column(Modifier.padding(start = 14.dp).weight(1f)) {
+            Text(title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text(sub, color = MUTED, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        Text("›", color = PURPLE, fontSize = 34.sp)
     }
 }
 
 @Composable
 private fun ThreeDHomeIcon(kind: String, modifier: Modifier = Modifier) {
     Box(modifier.clip(RoundedCornerShape(16.dp)).background(ICON_BG), contentAlignment = Alignment.Center) {
-        if (kind == "tv") ChannelStack3D() else Film3D()
+        ChannelStack3D()
     }
 }
 
 @Composable
 private fun ChannelStack3D() {
     Box(Modifier.fillMaxSize()) {
-        MiniChannelTile("1", Color(0xFF2E6CD4), 5.dp, 10.dp, -12f)
-        MiniChannelTile("М", Color(0xFFE53935), 29.dp, 5.dp, 8f)
-        MiniChannelTile("НТВ", Color(0xFF1E8C47), 10.dp, 30.dp, -5f)
-        MiniChannelTile("ТВЦ", Color(0xFF514A92), 36.dp, 29.dp, 10f)
-        MiniChannelTile("5", Color(0xFFD7DCE8), 25.dp, 47.dp, -4f, Color(0xFF5B2A86))
+        MiniChannelTile("1", Color(0xFF2E6CD4), 8.dp, 12.dp, -12f)
+        MiniChannelTile("М", Color(0xFFE53935), 36.dp, 8.dp, 8f)
+        MiniChannelTile("НТВ", Color(0xFF1E8C47), 14.dp, 40.dp, -5f)
+        MiniChannelTile("ТВЦ", Color(0xFF514A92), 44.dp, 38.dp, 10f)
+        MiniChannelTile("5", Color(0xFFD7DCE8), 28.dp, 66.dp, -4f, Color(0xFF5B2A86))
     }
 }
 
 @Composable
 private fun MiniChannelTile(label: String, color: Color, x: Dp, y: Dp, rotation: Float, textColor: Color = Color.White) {
-    Box(
-        Modifier.offset(x, y).size(28.dp)
-            .background(Brush.linearGradient(listOf(color.copy(alpha = .98f), color.copy(alpha = .55f))), RoundedCornerShape(7.dp))
-            .shadow(4.dp, RoundedCornerShape(7.dp))
-            .graphicsLayer { rotationZ = rotation },
-        Alignment.Center
-    ) {
-        Box(Modifier.fillMaxSize().padding(1.dp).background(Color.Black.copy(.16f), RoundedCornerShape(6.dp)), Alignment.Center) {
-            Text(label, color = textColor, fontSize = if (label.length > 2) 6.sp else 11.sp, fontWeight = FontWeight.ExtraBold)
-        }
-    }
-}
-
-@Composable
-private fun Film3D() {
-    Canvas(Modifier.fillMaxSize()) {
-        val reelCenter = Offset(size.width * .38f, size.height * .68f)
-        drawCircle(Color.Black.copy(.35f), radius = size.minDimension * .26f, center = reelCenter + Offset(2f, 3f))
-        drawCircle(Brush.linearGradient(listOf(Color(0xFF8995A8), Color(0xFF3C4656))), radius = size.minDimension * .25f, center = reelCenter)
-        drawCircle(Color(0xFF18202D), radius = size.minDimension * .18f, center = reelCenter)
-        val r = size.minDimension * .11f
-        listOf(Offset(0f, -r * 1.9f), Offset(r * 1.9f, 0f), Offset(0f, r * 1.9f), Offset(-r * 1.9f, 0f)).forEach { hole ->
-            drawCircle(Color(0xFF7A889A), radius = r * .42f, center = reelCenter + hole)
-        }
-        drawRoundRect(
-            Brush.linearGradient(listOf(Color(0xFF202A38), Color(0xFF748198))),
-            Offset(size.width * .12f, size.height * .38f),
-            Size(size.width * .62f, size.height * .14f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(5f, 5f)
-        )
-        drawLine(Color.White.copy(.75f), Offset(size.width * .2f, size.height * .39f), Offset(size.width * .27f, size.height * .5f), strokeWidth = 3f)
-        drawLine(Color.White.copy(.75f), Offset(size.width * .38f, size.height * .39f), Offset(size.width * .45f, size.height * .5f), strokeWidth = 3f)
-        drawLine(Color.White.copy(.75f), Offset(size.width * .56f, size.height * .39f), Offset(size.width * .63f, size.height * .5f), strokeWidth = 3f)
-
-        val skin = Color(0xFFF2D0A1)
-        val personX = size.width * .72f
-        drawCircle(skin, radius = size.minDimension * .09f, center = Offset(personX, size.height * .22f))
-        drawLine(skin, Offset(personX, size.height * .29f), Offset(personX - size.width * .08f, size.height * .52f), strokeWidth = size.minDimension * .075f)
-        drawLine(skin, Offset(personX - size.width * .04f, size.height * .36f), Offset(personX - size.width * .2f, size.height * .47f), strokeWidth = size.minDimension * .06f)
-        drawLine(skin, Offset(personX - size.width * .04f, size.height * .36f), Offset(personX + size.width * .12f, size.height * .43f), strokeWidth = size.minDimension * .06f)
-        drawLine(skin, Offset(personX - size.width * .08f, size.height * .52f), Offset(personX - size.width * .2f, size.height * .68f), strokeWidth = size.minDimension * .067f)
-        drawLine(skin, Offset(personX - size.width * .08f, size.height * .52f), Offset(personX + size.width * .06f, size.height * .7f), strokeWidth = size.minDimension * .067f)
+    Box(Modifier.offset(x, y).size(32.dp).background(Brush.linearGradient(listOf(color.copy(.98f), color.copy(.55f))), RoundedCornerShape(8.dp)), Alignment.Center) {
+        Text(label, color = textColor, fontSize = if (label.length > 2) 7.sp else 12.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
@@ -220,44 +190,49 @@ private fun Channels(channels: List<Channel>, q: String, onQ: (String) -> Unit, 
         if (loading) Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = PURPLE) }
         else {
             val list = channels.withIndex().filter { it.value.name.contains(q, true) || it.value.group.contains(q, true) }
-            LazyColumn(contentPadding = PaddingValues(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                itemsIndexed(list) { _, item -> ChannelRow(item.index, item.value, onPlay) }
-            }
+            LazyColumn(contentPadding = PaddingValues(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) { itemsIndexed(list) { _, item -> ChannelRow(item.index, item.value, onPlay) } }
         }
     }
 }
 
 @Composable
-private fun ChannelAvatar(index: Int, channel: Channel, outerSize: Dp = 48.dp, innerSize: Dp = 36.dp) {
-    Box(Modifier.size(outerSize).background(ICON_BG, RoundedCornerShape(12.dp)), Alignment.Center) {
-        if (channel.logo.isNotBlank()) {
-            AsyncImage(model = channel.logo, contentDescription = channel.name, modifier = Modifier.size(innerSize).clip(RoundedCornerShape(9.dp)))
-        } else {
-            ChannelLogo(index, channel.name, innerSize)
-        }
+private fun ChannelAvatar(index: Int, channel: Channel, outerSize: Dp = 56.dp, innerSize: Dp = 40.dp) {
+    Box(Modifier.size(outerSize).background(ICON_BG, RoundedCornerShape(14.dp)), Alignment.Center) {
+        if (channel.logo.isNotBlank()) AsyncImage(model = channel.logo, contentDescription = channel.name, modifier = Modifier.size(innerSize).clip(RoundedCornerShape(10.dp)))
+        else ChannelLogo(index, channel.name, innerSize)
     }
 }
 
 @Composable
 private fun ChannelRow(index: Int, c: Channel, on: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(14.dp)).clickable { on(index) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(82.dp).background(CARD, RoundedCornerShape(14.dp)).clickable { on(index) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         ChannelAvatar(index, c)
-        Column(Modifier.padding(start = 12.dp).weight(1f)) { Text(c.name, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(c.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 12.sp) }
-        Text("▶", color = PURPLE, fontSize = 18.sp)
+        Column(Modifier.padding(start = 14.dp).weight(1f)) {
+            Text(c.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(c.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 12.sp)
+        }
+        Text("▶", color = PURPLE, fontSize = 21.sp)
     }
 }
 
 @Composable
-private fun ChannelLogo(index: Int, name: String, size: Dp = 36.dp) {
+private fun ChannelLogo(index: Int, name: String, size: Dp = 40.dp) {
     val palettes = listOf(
         listOf(Color(0xFF2E6CD4), Color(0xFF203C86)), listOf(Color(0xFF18A85C), Color(0xFF0E6D42)), listOf(Color(0xFFE53935), Color(0xFF9E2222)),
         listOf(Color(0xFF4E7EA8), Color(0xFF243A5C)), listOf(Color(0xFF5E9AD6), Color(0xFF284465)), listOf(Color(0xFFE34B32), Color(0xFF9B271A)), listOf(Color(0xFFF08A22), Color(0xFF9B4E0B))
     )
     val colors = palettes[index % palettes.size]
-    val short = when { name.contains("Крым", true) -> "24"; name.contains("Югра", true) -> "Ю"; name.contains("Липец", true) -> "◷"; name.contains("4 канал", true) -> "4"; name.length > 5 -> name.take(2).uppercase(); else -> name.take(1).uppercase() }
-    Box(Modifier.size(size).background(Brush.linearGradient(colors), RoundedCornerShape(size * .23f)).graphicsLayer { rotationZ = if (index % 2 == 0) -3f else 3f }, Alignment.Center) {
-        Text(short, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = if (short.length > 1) (size.value * .27f).sp else (size.value * .38f).sp)
+    val short = when {
+        name.contains("Крым", true) -> "24"
+        name.contains("Югра", true) -> "Ю"
+        name.contains("Липец", true) -> "◷"
+        name.contains("4 канал", true) -> "4"
+        name.contains("НТВ", true) -> "НТ"
+        name.contains("Россия", true) -> "РО"
+        name.length > 5 -> name.take(2).uppercase()
+        else -> name.take(1).uppercase()
     }
+    Box(Modifier.size(size).background(Brush.linearGradient(colors), RoundedCornerShape(10.dp)), Alignment.Center) { Text(short, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = if (short.length > 1) 11.sp else 15.sp) }
 }
 
 @Composable
@@ -275,41 +250,50 @@ private fun PlayerScreen(channels: List<Channel>, index: Int, onSelect: (Int) ->
             addListener(object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) { errorText = "Не удалось загрузить канал\n${error.errorCodeName}" }
                 override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
-                override fun onPlaybackStateChanged(state: Int) { if (state == Player.STATE_READY) errorText = null }
             })
             setMediaItem(MediaItem.fromUri(channel.url)); prepare()
         }
     }
-    DisposableEffect(player) { isPlaying = player.isPlaying; onDispose { player.release(); activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT } }
+    DisposableEffect(player) { onDispose { player.release(); activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT } }
     BackHandler { if (fullscreen) fullscreen = false else onBack() }
     LaunchedEffect(fullscreen) {
-        if (fullscreen) { activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE; WindowCompat.setDecorFitsSystemWindows(activity.window, false); WindowInsetsControllerCompat(activity.window, activity.window.decorView).apply { hide(WindowInsetsCompat.Type.systemBars()); systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE } }
-        else { activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT; WindowCompat.setDecorFitsSystemWindows(activity.window, true); WindowInsetsControllerCompat(activity.window, activity.window.decorView).show(WindowInsetsCompat.Type.systemBars()) }
+        if (fullscreen) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            WindowCompat.setDecorFitsSystemWindows(activity.window, false)
+            WindowInsetsControllerCompat(activity.window, activity.window.decorView).hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            WindowCompat.setDecorFitsSystemWindows(activity.window, true)
+            WindowInsetsControllerCompat(activity.window, activity.window.decorView).show(WindowInsetsCompat.Type.systemBars())
+        }
     }
     if (fullscreen) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             VideoView(player, true, Modifier.fillMaxSize())
-            PlayerButtons(player, isPlaying, { fullscreen = false }, Modifier.align(Alignment.BottomEnd))
-            errorText?.let { ErrorMessage(it, Modifier.align(Alignment.Center)) }
+            Box(Modifier.align(Alignment.Center)) { PlayerButtons(player, isPlaying, { fullscreen = false }, Modifier) }
+            errorText?.let { ErrorMessage(it, Modifier.align(Alignment.Center).padding(top = 64.dp)) }
         }
     } else {
         Column(Modifier.fillMaxSize().background(BG)) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black)) {
                 VideoView(player, false, Modifier.fillMaxSize())
-                Box(Modifier.align(Alignment.TopStart).padding(10.dp).size(42.dp).background(Color.Black.copy(.5f), CircleShape).clickable { onBack() }, Alignment.Center) { Text("‹", color = Color.White, fontSize = 28.sp) }
+                Box(Modifier.align(Alignment.TopStart).padding(10.dp).size(40.dp).background(Color.Black.copy(.5f), CircleShape).clickable { onBack() }, Alignment.Center) { Text("‹", color = Color.White, fontSize = 26.sp) }
                 PlayerButtons(player, isPlaying, { fullscreen = true }, Modifier.align(Alignment.BottomEnd))
                 errorText?.let { ErrorMessage(it, Modifier.align(Alignment.Center)) }
             }
-            Text("${index + 1}. ${channel.name}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp, 14.dp, 16.dp, 4.dp))
+            Text("${index + 1}. ${channel.name}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 3.dp))
             Text("Следующие каналы", color = MUTED, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp))
             LazyColumn(contentPadding = PaddingValues(12.dp, 10.dp, 12.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 itemsIndexed(channels.drop(index + 1)) { offset, next ->
                     val nextIndex = index + 1 + offset
-                    Row(Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(13.dp)).clickable { onSelect(nextIndex) }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("${nextIndex + 1}", color = PURPLE, fontWeight = FontWeight.Bold, modifier = Modifier.width(36.dp))
-                        ChannelAvatar(nextIndex, next, 44.dp, 32.dp)
-                        Column(Modifier.padding(start = 10.dp).weight(1f)) { Text(next.name, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(next.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 11.sp) }
-                        Text("▶", color = PURPLE, fontSize = 17.sp)
+                    Row(Modifier.fillMaxWidth().height(68.dp).background(CARD, RoundedCornerShape(12.dp)).clickable { onSelect(nextIndex) }.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${nextIndex + 1}", color = PURPLE, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(36.dp))
+                        ChannelAvatar(nextIndex, next, 46.dp, 34.dp)
+                        Column(Modifier.padding(start = 10.dp).weight(1f)) {
+                            Text(next.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(next.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 10.sp)
+                        }
+                        Box(Modifier.size(34.dp).background(Color(0xFF4C1D95), CircleShape), Alignment.Center) { Text("▶", color = Color.White, fontSize = 13.sp) }
                     }
                 }
             }
@@ -324,25 +308,26 @@ private fun VideoView(player: ExoPlayer, zoom: Boolean, modifier: Modifier) {
 
 @Composable
 private fun PlayerButtons(player: ExoPlayer, isPlaying: Boolean, onFullscreen: () -> Unit, modifier: Modifier) {
-    Row(modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(38.dp).background(Color.Black.copy(.72f), CircleShape).clickable { if (player.isPlaying) player.pause() else player.play() }, Alignment.Center) {
-            Canvas(Modifier.size(22.dp)) {
+    Row(modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(42.dp).background(Color.Black.copy(.70f), CircleShape).clickable { if (player.isPlaying) player.pause() else player.play() }, contentAlignment = Alignment.Center) {
+            Canvas(Modifier.size(20.dp)) {
+                val w = size.width; val h = size.height
                 if (isPlaying) {
-                    drawRoundRect(Color.White, Offset(5f, 3f), Size(4f, 16f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f))
-                    drawRoundRect(Color.White, Offset(13f, 3f), Size(4f, 16f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f))
+                    drawRoundRect(Color.White, Offset(w * .18f, h * .16f), Size(w * .23f, h * .68f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f))
+                    drawRoundRect(Color.White, Offset(w * .59f, h * .16f), Size(w * .23f, h * .68f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f))
                 } else {
-                    val p = Path().apply { moveTo(6f, 3f); lineTo(6f, 19f); lineTo(18f, 11f); close() }
+                    val p = Path().apply { moveTo(w * .30f, h * .14f); lineTo(w * .30f, h * .86f); lineTo(w * .80f, h * .50f); close() }
                     drawPath(p, Color.White)
                 }
             }
         }
-        Box(Modifier.size(36.dp).background(Color.Black.copy(.64f), CircleShape).clickable { onFullscreen() }, Alignment.Center) {
-            Canvas(Modifier.size(21.dp)) {
-                val w = 2.3f
-                drawLine(Color.White, Offset(4f, 7f), Offset(4f, 3.5f), strokeWidth = w); drawLine(Color.White, Offset(4f, 3.5f), Offset(7.5f, 3.5f), strokeWidth = w)
-                drawLine(Color.White, Offset(13.5f, 3.5f), Offset(17f, 3.5f), strokeWidth = w); drawLine(Color.White, Offset(17f, 3.5f), Offset(17f, 7f), strokeWidth = w)
-                drawLine(Color.White, Offset(4f, 14f), Offset(4f, 17.5f), strokeWidth = w); drawLine(Color.White, Offset(4f, 17.5f), Offset(7.5f, 17.5f), strokeWidth = w)
-                drawLine(Color.White, Offset(13.5f, 17.5f), Offset(17f, 17.5f), strokeWidth = w); drawLine(Color.White, Offset(17f, 17.5f), Offset(17f, 14f), strokeWidth = w)
+        Box(Modifier.size(40.dp).background(Color.Black.copy(.62f), CircleShape).clickable { onFullscreen() }, contentAlignment = Alignment.Center) {
+            Canvas(Modifier.size(18.dp)) {
+                val sw = 2f
+                drawLine(Color.White, Offset(3f, 7f), Offset(3f, 3f), sw); drawLine(Color.White, Offset(3f, 3f), Offset(7f, 3f), sw)
+                drawLine(Color.White, Offset(11f, 3f), Offset(15f, 3f), sw); drawLine(Color.White, Offset(15f, 3f), Offset(15f, 7f), sw)
+                drawLine(Color.White, Offset(3f, 11f), Offset(3f, 15f), sw); drawLine(Color.White, Offset(3f, 15f), Offset(7f, 15f), sw)
+                drawLine(Color.White, Offset(11f, 15f), Offset(15f, 15f), sw); drawLine(Color.White, Offset(15f, 15f), Offset(15f, 11f), sw)
             }
         }
     }
@@ -356,7 +341,9 @@ private fun Movies(movies: List<Movie>, q: String, onQ: (String) -> Unit, loadin
     val filtered = movies.filter { it.title.contains(q, true) || it.description.contains(q, true) }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         OutlinedTextField(q, onQ, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Поиск фильмов", color = MUTED) })
-        Spacer(Modifier.height(12.dp)); Text("Internet Archive", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold); Text("Public Domain / Creative Commons", color = MUTED, fontSize = 12.sp)
+        Spacer(Modifier.height(12.dp))
+        Text("Internet Archive", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text("Public Domain / Creative Commons", color = MUTED, fontSize = 12.sp)
         when {
             loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = PURPLE) }
             filtered.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Каталог пуст или источник недоступен", color = MUTED) }
@@ -370,7 +357,12 @@ private fun MovieCard(movie: Movie) {
     val context = LocalContext.current
     Row(Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(16.dp)).clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://archive.org/details/${movie.id}"))) }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
         AsyncImage(model = "https://archive.org/services/img/${movie.id}", contentDescription = movie.title, modifier = Modifier.width(88.dp).height(118.dp).background(Color(0xFF222A35), RoundedCornerShape(12.dp)))
-        Column(Modifier.padding(start = 14.dp).weight(1f)) { Text(movie.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis); if (movie.year.isNotBlank()) Text(movie.year, color = PURPLE, fontSize = 12.sp); Text(movie.description.ifBlank { "Открыть карточку фильма в Internet Archive" }, color = MUTED, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis); Text("▶ Открыть и смотреть", color = PURPLE, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+        Column(Modifier.padding(start = 14.dp).weight(1f)) {
+            Text(movie.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (movie.year.isNotBlank()) Text(movie.year, color = PURPLE, fontSize = 12.sp)
+            Text(movie.description.ifBlank { "Открыть карточку фильма в Internet Archive" }, color = MUTED, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            Text("▶ Открыть и смотреть", color = PURPLE, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -382,7 +374,9 @@ private fun FavoritesPage() {
                 val heart = Path().apply { moveTo(24f, 40f); cubicTo(5f, 27f, 6f, 11f, 15f, 10f); cubicTo(20f, 9f, 23f, 13f, 24f, 16f); cubicTo(25f, 13f, 28f, 9f, 33f, 10f); cubicTo(42f, 11f, 43f, 27f, 24f, 40f); close() }
                 drawPath(heart, Color(0xFFC7CDD8), style = Stroke(width = 3.2f))
             }
-            Spacer(Modifier.height(12.dp)); Text("Избранное пока пусто", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold); Text("Добавим избранное позже", color = MUTED, fontSize = 13.sp)
+            Spacer(Modifier.height(12.dp))
+            Text("Избранное пока пусто", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text("Добавим избранное позже", color = MUTED, fontSize = 13.sp)
         }
     }
 }
@@ -391,20 +385,24 @@ private fun FavoritesPage() {
 private fun NavIcon(id: String, selected: Boolean) {
     val tint = if (selected) Color.White else Color(0xFFC7CDD8)
     Canvas(Modifier.size(26.dp)) {
+        val w = size.width; val h = size.height
         when (id) {
             "channels" -> {
-                drawRoundRect(tint, Offset(2.5f, 4.5f), Size(21f, 16f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f), style = Stroke(width = 2.6f))
-                drawLine(tint, Offset(8f, 20.5f), Offset(18f, 20.5f), strokeWidth = 2.6f)
-                drawCircle(PURPLE, radius = 2.2f, center = Offset(13f, 12.5f))
+                drawRoundRect(tint, Offset(w * .14f, h * .22f), Size(w * .72f, h * .56f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f), style = Stroke(width = 2.5f))
+                drawLine(tint, Offset(w * .30f, h * .88f), Offset(w * .70f, h * .88f), strokeWidth = 2.5f)
+                drawCircle(PURPLE, radius = 2f, center = Offset(w * .50f, h * .50f))
             }
             "movies" -> {
-                drawRoundRect(tint, Offset(2.5f, 4f), Size(21f, 17f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.5f, 2.5f), style = Stroke(width = 2.5f))
-                drawLine(tint, Offset(6f, 4f), Offset(8f, 9f), strokeWidth = 2.2f); drawLine(tint, Offset(11f, 4f), Offset(13f, 9f), strokeWidth = 2.2f); drawLine(tint, Offset(16f, 4f), Offset(18f, 9f), strokeWidth = 2.2f)
-                val play = Path().apply { moveTo(10f, 11f); lineTo(10f, 17f); lineTo(17f, 14f); close() }; drawPath(play, PURPLE)
+                drawRoundRect(tint, Offset(w * .13f, h * .18f), Size(w * .74f, h * .62f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f), style = Stroke(width = 2.3f))
+                drawLine(tint, Offset(w * .27f, h * .18f), Offset(w * .32f, h * .38f), strokeWidth = 2f)
+                drawLine(tint, Offset(w * .46f, h * .18f), Offset(w * .51f, h * .38f), strokeWidth = 2f)
+                drawLine(tint, Offset(w * .65f, h * .18f), Offset(w * .70f, h * .38f), strokeWidth = 2f)
+                val play = Path().apply { moveTo(w * .42f, h * .46f); lineTo(w * .42f, h * .69f); lineTo(w * .68f, h * .57f); close() }
+                drawPath(play, PURPLE)
             }
             else -> {
-                val heart = Path().apply { moveTo(13f, 22f); cubicTo(3f, 15f, 4f, 6f, 9f, 6f); cubicTo(11.5f, 6f, 12.7f, 8f, 13f, 9f); cubicTo(13.3f, 8f, 14.5f, 6f, 17f, 6f); cubicTo(22f, 6f, 23f, 15f, 13f, 22f); close() }
-                drawPath(heart, tint, style = Stroke(width = 2.6f))
+                val heart = Path().apply { moveTo(w * .50f, h * .84f); cubicTo(w * .11f, h * .58f, w * .16f, h * .18f, w * .38f, h * .24f); cubicTo(w * .47f, h * .26f, w * .50f, h * .34f, w * .50f, h * .40f); cubicTo(w * .50f, h * .34f, w * .53f, h * .26f, w * .62f, h * .24f); cubicTo(w * .84f, h * .18f, w * .89f, h * .58f, w * .50f, h * .84f) }
+                drawPath(heart, tint, style = Stroke(width = 2.4f))
             }
         }
     }
@@ -412,9 +410,9 @@ private fun NavIcon(id: String, selected: Boolean) {
 
 @Composable
 private fun BottomBar(page: String, onPage: (String) -> Unit) {
-    NavigationBar(containerColor = Color(0xFF0D1117)) {
-        listOf(Pair("movies", "Фильмы"), Pair("channels", "ТВ"), Pair("favorites", "Избранное")).forEach { (id, label) ->
-            NavigationBarItem(selected = page == id, onClick = { onPage(id) }, icon = { NavIcon(id, page == id) }, label = { Text(label, fontSize = 11.sp) })
+    NavigationBar(containerColor = Color(0xFF0D1117), tonalElevation = 0.dp) {
+        listOf("movies" to "Фильмы", "channels" to "ТВ", "favorites" to "Избранное").forEach { (id, label) ->
+            NavigationBarItem(selected = page == id, onClick = { onPage(id) }, icon = { NavIcon(id, page == id) }, label = { Text(label, fontSize = 12.sp) })
         }
     }
 }
@@ -423,16 +421,26 @@ private fun loadM3u(): List<Channel> = try { parseM3u(URL(PLAYLIST_URL).readText
 
 private fun parseM3u(text: String): List<Channel> {
     val result = mutableListOf<Channel>(); var name = ""; var group = ""; var ua = ""; var logo = ""
-    text.lineSequence().forEach { raw -> val line = raw.trim(); when {
-        line.startsWith("#EXTINF:", true) -> { name = line.substringAfterLast(',').trim(); group = Regex("""group-title=\"([^\"]*)\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty(); logo = Regex("""tvg-logo=\"([^\"]*)\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty(); ua = "" }
-        line.startsWith("#EXTVLCOPT:http-user-agent=", true) -> ua = line.substringAfter('=').trim()
-        line.startsWith("#") || line.isBlank() -> Unit
-        else -> { if (name.isNotBlank()) result += Channel(name, group, line, ua, logo); name = ""; group = ""; ua = ""; logo = "" }
-    } }
+    val groupRe = Regex("""group-title\\s*=\\s*[\"']([^\"']*)[\"']""", RegexOption.IGNORE_CASE)
+    val logoRe = Regex("""tvg-logo\\s*=\\s*[\"']([^\"']*)[\"']""", RegexOption.IGNORE_CASE)
+    text.lineSequence().forEach { raw ->
+        val line = raw.trim()
+        when {
+            line.startsWith("#EXTINF:", true) -> { name = line.substringAfterLast(',').trim(); group = groupRe.find(line)?.groupValues?.getOrNull(1).orEmpty(); logo = logoRe.find(line)?.groupValues?.getOrNull(1).orEmpty(); ua = "" }
+            line.startsWith("#EXTVLCOPT:http-user-agent=", true) -> ua = line.substringAfter('=').trim()
+            line.startsWith("#") || line.isBlank() -> Unit
+            else -> { if (name.isNotBlank()) result += Channel(name, group, line, ua, logo); name = ""; group = ""; ua = ""; logo = "" }
+        }
+    }
     return result
 }
 
 private fun loadMovies(): List<Movie> = try {
     val docs = JSONObject(URL(IA_SEARCH).readText()).getJSONObject("response").getJSONArray("docs")
-    buildList { for (i in 0 until docs.length()) { val item = docs.getJSONObject(i); val id = item.optString("identifier"); val title = item.optString("title"); val license = item.optString("licenseurl"); if (id.isNotBlank() && title.isNotBlank() && (license.contains("creativecommons.org", true) || license.contains("publicdomain", true))) add(Movie(id, title, item.optString("year"), item.optString("description"), license)) } }.distinctBy { it.id }
+    buildList {
+        for (i in 0 until docs.length()) {
+            val item = docs.getJSONObject(i); val id = item.optString("identifier"); val title = item.optString("title"); val license = item.optString("licenseurl")
+            if (id.isNotBlank() && title.isNotBlank() && (license.contains("creativecommons.org", true) || license.contains("publicdomain", true))) add(Movie(id, title, item.optString("year"), item.optString("description"), license))
+        }
+    }.distinctBy { it.id }
 } catch (_: Exception) { emptyList() }
