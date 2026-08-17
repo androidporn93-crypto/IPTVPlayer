@@ -1,7 +1,6 @@
 package com.example.iptvplayer
 
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -159,8 +158,16 @@ private fun PlayerScreen(channels: List<Channel>, selectedIndex: Int, onSelect: 
 
     BackHandler { if (fullscreen) fullscreen = false else onBack() }
     LaunchedEffect(fullscreen) {
-        if (fullscreen) { activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE; WindowCompat.setDecorFitsSystemWindows(activity.window, false); WindowInsetsControllerCompat(activity.window, activity.window.decorView).hide(WindowInsetsCompat.Type.systemBars()) }
-        else { activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT; WindowCompat.setDecorFitsSystemWindows(activity.window, true); WindowInsetsControllerCompat(activity.window, activity.window.decorView).show(WindowInsetsCompat.Type.systemBars()) }
+        if (fullscreen) {
+            WindowCompat.setDecorFitsSystemWindows(activity.window, false)
+            WindowInsetsControllerCompat(activity.window, activity.window.decorView).apply {
+                hide(WindowInsetsCompat.Type.systemBars())
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            WindowCompat.setDecorFitsSystemWindows(activity.window, true)
+            WindowInsetsControllerCompat(activity.window, activity.window.decorView).show(WindowInsetsCompat.Type.systemBars())
+        }
     }
     DisposableEffect(player) { onDispose { player.release() } }
 
