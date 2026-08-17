@@ -17,7 +17,6 @@ for src_name, dst_name in {
 source = ROOT / 'app/src/main/java/com/example/iptvplayer/MainActivity.kt'
 text = source.read_text()
 
-# Home cards: use the supplied images directly instead of the old placeholder icons.
 home_old = '''        if (kind == "movie") Image(painterResource(R.drawable.home_movies_icon), "Фильмы", Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))) else ThreeDHomeIcon(kind, Modifier.size(94.dp))'''
 home_new = '''        Image(
             painter = painterResource(if (kind == "movie") R.drawable.movies_photo else R.drawable.iptv_channels_photo),
@@ -27,7 +26,6 @@ home_new = '''        Image(
 if home_old in text:
     text = text.replace(home_old, home_new, 1)
 
-# Also support the older multi-line HomeBtn variant.
 home_old_multiline = '''        if (kind == "movie") {
             Image(
                 painter = painterResource(R.drawable.home_movies_icon),
@@ -40,57 +38,6 @@ home_old_multiline = '''        if (kind == "movie") {
 if home_old_multiline in text:
     text = text.replace(home_old_multiline, home_new, 1)
 
-# Keep the refined player controls from the working build.
-fullscreen_old = '''            if (showControls) {
-                PlayCircleButton(58.dp) { if (player.isPlaying) player.pause() else player.play(); showControls = true; controlsTick++ }
-                Box(Modifier.align(Alignment.Center)) {
-                    PlayPauseIcon(isPlaying, 28.dp)
-                }
-                FullscreenButton(46.dp, Modifier.align(Alignment.BottomEnd).padding(18.dp)) { fullscreen = false }
-                Box(Modifier.align(Alignment.Center), Modifier) {
-                    PlayCircleButton(74.dp) { if (player.isPlaying) player.pause() else player.play(); controlsTick++ }
-                }
-            }'''
-fullscreen_new = '''            if (showControls) {
-                HeartButton(isFavorite, 42.dp, Modifier.align(Alignment.TopEnd).padding(12.dp)) { onToggleFavorite(); controlsTick++ }
-                Box(
-                    Modifier.align(Alignment.Center)
-                        .size(74.dp)
-                        .background(Color.Black.copy(.68f), CircleShape)
-                        .clickable { if (player.isPlaying) player.pause() else player.play(); controlsTick++ },
-                    Alignment.Center
-                ) {
-                    PlayPauseIcon(isPlaying, 32.dp)
-                }
-                FullscreenButton(46.dp, Modifier.align(Alignment.BottomEnd).padding(18.dp)) { fullscreen = false; controlsTick++ }
-            }'''
-if fullscreen_old in text:
-    text = text.replace(fullscreen_old, fullscreen_new, 1)
-
-portrait_old = '''                if (showControls) {
-                    Box(Modifier.align(Alignment.TopStart).padding(10.dp).size(40.dp).background(Color.Black.copy(.52f), CircleShape).clickable { onBack() }, Alignment.Center) { Text("‹", color = Color.White, fontSize = 26.sp) }
-                    HeartButton(isFavorite, 42.dp, Modifier.align(Alignment.TopEnd).padding(10.dp)) { onToggleFavorite(); showControls = true; controlsTick++ }
-                    Box(Modifier.align(Alignment.Center)) { PlayPauseIcon(isPlaying, 34.dp); Modifier.clickable { if (player.isPlaying) player.pause() else player.play(); controlsTick++ } }
-                    FullscreenButton(46.dp, Modifier.align(Alignment.BottomEnd).padding(12.dp)) { fullscreen = true; controlsTick++ }
-                }'''
-portrait_new = '''                if (showControls) {
-                    Box(Modifier.align(Alignment.TopStart).padding(10.dp).size(40.dp).background(Color.Black.copy(.52f), CircleShape).clickable { onBack() }, Alignment.Center) { Text("‹", color = Color.White, fontSize = 26.sp) }
-                    HeartButton(isFavorite, 42.dp, Modifier.align(Alignment.TopEnd).padding(10.dp)) { onToggleFavorite(); controlsTick++ }
-                    Box(
-                        Modifier.align(Alignment.Center)
-                            .size(68.dp)
-                            .background(Color.Black.copy(.68f), CircleShape)
-                            .clickable { if (player.isPlaying) player.pause() else player.play(); controlsTick++ },
-                        Alignment.Center
-                    ) {
-                        PlayPauseIcon(isPlaying, 30.dp)
-                    }
-                    FullscreenButton(46.dp, Modifier.align(Alignment.BottomEnd).padding(12.dp)) { fullscreen = true; controlsTick++ }
-                }'''
-if portrait_old in text:
-    text = text.replace(portrait_old, portrait_new, 1)
-
-# Replace the existing ChannelLogo with channel-aware local branding.
 logo_start = text.find('@Composable\nprivate fun ChannelLogo(')
 player_start = text.find('@Composable\nprivate fun PlayerScreen', logo_start)
 if logo_start >= 0 and player_start > logo_start:
@@ -108,10 +55,7 @@ private fun ChannelLogo(index: Int, name: String, size: Dp = 40.dp) {
         key.contains("первый канал") -> listOf(Color(0xFFE43B3F), Color(0xFF9D1D25))
         else -> listOf(Color(0xFF4A74A8), Color(0xFF263A57))
     }
-    Box(
-        Modifier.size(size).background(Brush.linearGradient(colors), RoundedCornerShape(10.dp)),
-        Alignment.Center
-    ) {
+    Box(Modifier.size(size).background(Brush.linearGradient(colors), RoundedCornerShape(10.dp)), Alignment.Center) {
         when {
             key.contains("россия 24") -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("РОССИЯ", color = Color.White, fontSize = (size.value * 0.20f).sp, fontWeight = FontWeight.Bold)
@@ -150,4 +94,4 @@ private fun ChannelLogo(index: Int, name: String, size: Dp = 40.dp) {
     text = text[:logo_start] + logo_new + text[player_start:]
 
 source.write_text(text)
-print('Artwork, channel logos and player controls patched successfully')
+print('Artwork and channel logos patched successfully')
