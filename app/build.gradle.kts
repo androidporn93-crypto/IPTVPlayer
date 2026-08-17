@@ -48,33 +48,6 @@ val prepareSuppliedArtwork = tasks.register("prepareSuppliedArtwork") {
             val encoded = File(assetsDir, sourceName).readText().trim()
             File(drawableDir, targetName).writeBytes(Base64.getDecoder().decode(encoded))
         }
-
-        val source = file("src/main/java/com/example/iptvplayer/MainActivity.kt")
-        val text = source.readText()
-        val old = """        if (kind == "movie") {
-            Image(
-                painter = painterResource(R.drawable.home_movies_icon),
-                contentDescription = "Фильмы",
-                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
-            )
-        } else {
-            ThreeDHomeIcon(kind, Modifier.size(94.dp))
-        }"""
-        val new = """        if (kind == "movie") {
-            Image(
-                painter = painterResource(R.drawable.movies_photo),
-                contentDescription = "Фильмы",
-                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
-            )
-        } else {
-            Image(
-                painter = painterResource(R.drawable.iptv_channels_photo),
-                contentDescription = "ТВ каналы",
-                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
-            )
-        }"""
-        if (!text.contains(old)) error("HomeBtn block not found")
-        source.writeText(text.replace(old, new))
     }
 }
 
