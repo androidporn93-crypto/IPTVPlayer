@@ -3,6 +3,7 @@
     <application
         android:theme="@style/Theme.IPTVPlayer"
         android:label="IPTV Player"
+        android:icon="@drawable/ic_launcher"
         android:usesCleartextTraffic="true"
         android:allowBackup="false"
         android:supportsRtl="true">
