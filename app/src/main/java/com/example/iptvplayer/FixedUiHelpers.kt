@@ -13,10 +13,9 @@ import androidx.compose.ui.geometry.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 
 @Composable
-private fun FixedHeart(favorite: Boolean, size: Dp, modifier: Modifier, onClick: () -> Unit) {
+fun FixedHeart(favorite: Boolean, size: Dp, modifier: Modifier, onClick: () -> Unit) {
     Box(modifier.size(size).background(Color.Black.copy(.58f), CircleShape).clickable(onClick = onClick), Alignment.Center) {
         Canvas(Modifier.size(size * .48f)) {
             val w = this.size.width; val h = this.size.height
