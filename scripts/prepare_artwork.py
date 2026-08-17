@@ -118,11 +118,25 @@ private fun HeartButton(favorite: Boolean, buttonSize: Dp = 42.dp, modifier: Mod
             .clickable(onClick = onClick),
         Alignment.Center
     ) {
-        Text(
-            if (favorite) "♥" else "♡",
-            color = if (favorite) PURPLE else Color.White,
-            fontSize = 24.sp
-        )
+        Canvas(Modifier.size(buttonSize * 0.56f)) {
+            val w = size.width
+            val h = size.height
+            val path = Path().apply {
+                moveTo(w * 0.50f, h * 0.90f)
+                cubicTo(w * 0.44f, h * 0.83f, w * 0.13f, h * 0.62f, w * 0.12f, h * 0.39f)
+                cubicTo(w * 0.11f, h * 0.20f, w * 0.23f, h * 0.08f, w * 0.36f, h * 0.13f)
+                cubicTo(w * 0.44f, h * 0.16f, w * 0.48f, h * 0.23f, w * 0.50f, h * 0.30f)
+                cubicTo(w * 0.52f, h * 0.23f, w * 0.56f, h * 0.16f, w * 0.64f, h * 0.13f)
+                cubicTo(w * 0.77f, h * 0.08f, w * 0.89f, h * 0.20f, w * 0.88f, h * 0.39f)
+                cubicTo(w * 0.87f, h * 0.62f, w * 0.56f, h * 0.83f, w * 0.50f, h * 0.90f)
+                close()
+            }
+            if (favorite) {
+                drawPath(path, color = PURPLE)
+            } else {
+                drawPath(path, color = Color.White, style = Stroke(width = 2.8f))
+            }
+        }
     }
 }
 
