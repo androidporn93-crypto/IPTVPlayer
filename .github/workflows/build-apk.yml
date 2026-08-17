@@ -31,6 +31,50 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Prepare supplied card artwork
+        run: |
+          mkdir -p app/src/main/res/drawable-nodpi
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+
+          assets = {
+              'app/src/main/assets/iptv_channels_photo.webp.b64': 'app/src/main/res/drawable-nodpi/iptv_channels_photo.webp',
+              'app/src/main/assets/movies_photo.webp.b64': 'app/src/main/res/drawable-nodpi/movies_photo.webp',
+          }
+          for src, dst in assets.items():
+              Path(dst).write_bytes(base64.b64decode(Path(src).read_text().strip()))
+
+          source = Path('app/src/main/java/com/example/iptvplayer/MainActivity.kt')
+          text = source.read_text()
+          old = '''        if (kind == "movie") {
+            Image(
+                painter = painterResource(R.drawable.home_movies_icon),
+                contentDescription = "Фильмы",
+                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
+            )
+        } else {
+            ThreeDHomeIcon(kind, Modifier.size(94.dp))
+        }'''
+          new = '''        if (kind == "movie") {
+            Image(
+                painter = painterResource(R.drawable.movies_photo),
+                contentDescription = "Фильмы",
+                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
+            )
+        } else {
+            Image(
+                painter = painterResource(R.drawable.iptv_channels_photo),
+                contentDescription = "ТВ каналы",
+                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
+            )
+        }'''
+          if old not in text:
+              raise SystemExit('HomeBtn block not found; source layout changed')
+          source.write_text(text.replace(old, new, 1))
+          PY
+          rm -f app/src/main/assets/iptv_channels_photo.webp.b64 app/src/main/assets/movies_photo.webp.b64
+
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
