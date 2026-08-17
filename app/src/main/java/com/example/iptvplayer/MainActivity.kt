@@ -1,6 +1,8 @@
 package com.example.iptvplayer
 
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
@@ -11,6 +13,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -21,12 +24,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +53,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
@@ -55,6 +61,8 @@ import java.net.URL
 private const val PLAYLIST_URL = "https://raw.githubusercontent.com/Dimonovich/TV/Dimonovich/FREE/.m3u"
 private const val IA_SEARCH = "https://archive.org/advancedsearch.php?q=mediatype%3Amovies%20AND%20%28licenseurl%3Acreativecommons.org%20OR%20licenseurl%3Apublicdomain%29&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=description&fl%5B%5D=year&fl%5B%5D=licenseurl&rows=60&page=1&output=json"
 private const val UA = "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36"
+private const val PREFS = "iptv_prefs"
+private const val PREF_FAVORITES = "favorite_urls"
 private val BG = Color(0xFF080B10)
 private val CARD = Color(0xFF121820)
 private val PURPLE = Color(0xFFA855F7)
@@ -73,13 +81,23 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun IPTVApp() {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
     var page by remember { mutableStateOf("home") }
     var query by remember { mutableStateOf("") }
     var channels by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var movies by remember { mutableStateOf<List<Movie>>(emptyList()) }
+    var favorites by remember { mutableStateOf(loadFavorites(prefs)) }
     var loading by remember { mutableStateOf(true) }
     var movieLoading by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Int?>(null) }
+
+    fun toggleFavorite(channel: Channel) {
+        favorites = favorites.toMutableSet().apply {
+            if (!add(channel.url)) remove(channel.url)
+        }
+        saveFavorites(prefs, favorites)
+    }
 
     LaunchedEffect(Unit) {
         channels = withContext(Dispatchers.IO) { loadM3u() }
@@ -92,19 +110,28 @@ private fun IPTVApp() {
             movieLoading = false
         }
     }
+
     MaterialTheme(colorScheme = darkColorScheme(background = BG, surface = CARD, primary = PURPLE)) {
         if (selected != null && channels.isNotEmpty()) {
-            PlayerScreen(channels, selected!!, { selected = it }, { selected = null })
+            PlayerScreen(
+                channels = channels,
+                index = selected!!,
+                isFavorite = channels[selected!!].url in favorites,
+                onToggleFavorite = { toggleFavorite(channels[selected!!]) },
+                onSelect = { selected = it },
+                onBack = { selected = null }
+            )
             return@MaterialTheme
         }
+
         Scaffold(containerColor = BG, bottomBar = { BottomBar(page) { page = it; query = "" } }) { padding ->
             Column(Modifier.fillMaxSize().background(BG).padding(padding)) {
                 Text("IPTV Player", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(18.dp))
                 Box(Modifier.weight(1f)) {
                     when (page) {
-                        "channels" -> Channels(channels, query, { query = it }, loading) { selected = it }
+                        "channels" -> Channels(channels, query, { query = it }, loading, favorites) { selected = it }
                         "movies" -> Movies(movies, query, { query = it }, movieLoading)
-                        "favorites" -> FavoritesPage()
+                        "favorites" -> FavoritesPage(channels, favorites, { selected = it }, ::toggleFavorite)
                         else -> Home({ page = "channels" }, { page = "movies" })
                     }
                 }
@@ -113,14 +140,13 @@ private fun IPTVApp() {
     }
 }
 
+private fun loadFavorites(prefs: SharedPreferences): Set<String> = prefs.getStringSet(PREF_FAVORITES, emptySet())?.toSet() ?: emptySet()
+private fun saveFavorites(prefs: SharedPreferences, favorites: Set<String>) { prefs.edit().putStringSet(PREF_FAVORITES, favorites.toSet()).apply() }
+
 @Composable
 private fun Home(tv: () -> Unit, movie: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Box(
-            Modifier.fillMaxWidth().height(150.dp)
-                .background(Brush.linearGradient(listOf(Color(0xFF6D28D9), Color(0xFF172B8A))), RoundedCornerShape(22.dp))
-                .padding(20.dp)
-        ) {
+        Box(Modifier.fillMaxWidth().height(150.dp).background(Brush.linearGradient(listOf(Color(0xFF6D28D9), Color(0xFF172B8A))), RoundedCornerShape(22.dp)).padding(20.dp)) {
             Column {
                 Text("TV", color = Color.White.copy(.28f), fontSize = 54.sp, fontWeight = FontWeight.Black)
                 Text("Смотрите любимые каналы", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -135,20 +161,8 @@ private fun Home(tv: () -> Unit, movie: () -> Unit) {
 
 @Composable
 private fun HomeBtn(kind: String, title: String, sub: String, on: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().height(124.dp).padding(vertical = 5.dp)
-            .background(CARD, RoundedCornerShape(16.dp)).clickable(onClick = on).padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (kind == "movie") {
-            Image(
-                painter = painterResource(R.drawable.home_movies_icon),
-                contentDescription = "Фильмы",
-                modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))
-            )
-        } else {
-            ThreeDHomeIcon(kind, Modifier.size(94.dp))
-        }
+    Row(Modifier.fillMaxWidth().height(124.dp).padding(vertical = 5.dp).background(CARD, RoundedCornerShape(16.dp)).clickable(onClick = on).padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (kind == "movie") Image(painterResource(R.drawable.home_movies_icon), "Фильмы", Modifier.size(104.dp).clip(RoundedCornerShape(14.dp))) else ThreeDHomeIcon(kind, Modifier.size(94.dp))
         Column(Modifier.padding(start = 14.dp).weight(1f)) {
             Text(title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
@@ -160,37 +174,37 @@ private fun HomeBtn(kind: String, title: String, sub: String, on: () -> Unit) {
 
 @Composable
 private fun ThreeDHomeIcon(kind: String, modifier: Modifier = Modifier) {
-    Box(modifier.clip(RoundedCornerShape(16.dp)).background(ICON_BG), contentAlignment = Alignment.Center) {
-        ChannelStack3D()
-    }
+    Box(modifier.clip(RoundedCornerShape(16.dp)).background(ICON_BG), contentAlignment = Alignment.Center) { ChannelStack3D() }
 }
 
 @Composable
 private fun ChannelStack3D() {
     Box(Modifier.fillMaxSize()) {
-        MiniChannelTile("1", Color(0xFF2E6CD4), 8.dp, 12.dp, -12f)
-        MiniChannelTile("М", Color(0xFFE53935), 36.dp, 8.dp, 8f)
-        MiniChannelTile("НТВ", Color(0xFF1E8C47), 14.dp, 40.dp, -5f)
-        MiniChannelTile("ТВЦ", Color(0xFF514A92), 44.dp, 38.dp, 10f)
-        MiniChannelTile("5", Color(0xFFD7DCE8), 28.dp, 66.dp, -4f, Color(0xFF5B2A86))
+        MiniChannelTile("1", Color(0xFF2E6CD4), 8.dp, 12.dp)
+        MiniChannelTile("М", Color(0xFFE53935), 36.dp, 8.dp)
+        MiniChannelTile("НТВ", Color(0xFF1E8C47), 14.dp, 40.dp)
+        MiniChannelTile("ТВЦ", Color(0xFF514A92), 44.dp, 38.dp)
+        MiniChannelTile("5", Color(0xFFD7DCE8), 28.dp, 66.dp, Color(0xFF5B2A86))
     }
 }
 
 @Composable
-private fun MiniChannelTile(label: String, color: Color, x: Dp, y: Dp, rotation: Float, textColor: Color = Color.White) {
+private fun MiniChannelTile(label: String, color: Color, x: Dp, y: Dp, textColor: Color = Color.White) {
     Box(Modifier.offset(x, y).size(32.dp).background(Brush.linearGradient(listOf(color.copy(.98f), color.copy(.55f))), RoundedCornerShape(8.dp)), Alignment.Center) {
         Text(label, color = textColor, fontSize = if (label.length > 2) 7.sp else 12.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
 @Composable
-private fun Channels(channels: List<Channel>, q: String, onQ: (String) -> Unit, loading: Boolean, onPlay: (Int) -> Unit) {
+private fun Channels(channels: List<Channel>, q: String, onQ: (String) -> Unit, loading: Boolean, favorites: Set<String>, onPlay: (Int) -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         OutlinedTextField(q, onQ, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Поиск канала", color = MUTED) })
         if (loading) Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = PURPLE) }
         else {
             val list = channels.withIndex().filter { it.value.name.contains(q, true) || it.value.group.contains(q, true) }
-            LazyColumn(contentPadding = PaddingValues(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) { itemsIndexed(list) { _, item -> ChannelRow(item.index, item.value, onPlay) } }
+            LazyColumn(contentPadding = PaddingValues(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                itemsIndexed(list) { _, item -> ChannelRow(item.index, item.value, item.value.url in favorites, onPlay) }
+            }
         }
     }
 }
@@ -198,29 +212,27 @@ private fun Channels(channels: List<Channel>, q: String, onQ: (String) -> Unit, 
 @Composable
 private fun ChannelAvatar(index: Int, channel: Channel, outerSize: Dp = 56.dp, innerSize: Dp = 40.dp) {
     Box(Modifier.size(outerSize).background(ICON_BG, RoundedCornerShape(14.dp)), Alignment.Center) {
-        if (channel.logo.isNotBlank()) AsyncImage(model = channel.logo, contentDescription = channel.name, modifier = Modifier.size(innerSize).clip(RoundedCornerShape(10.dp)))
-        else ChannelLogo(index, channel.name, innerSize)
+        if (channel.logo.isNotBlank()) AsyncImage(model = channel.logo, contentDescription = channel.name, modifier = Modifier.size(innerSize).clip(RoundedCornerShape(10.dp))) else ChannelLogo(index, channel.name, innerSize)
     }
 }
 
 @Composable
-private fun ChannelRow(index: Int, c: Channel, on: (Int) -> Unit) {
+private fun ChannelRow(index: Int, c: Channel, favorite: Boolean, on: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().height(82.dp).background(CARD, RoundedCornerShape(14.dp)).clickable { on(index) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         ChannelAvatar(index, c)
         Column(Modifier.padding(start = 14.dp).weight(1f)) {
             Text(c.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(c.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 12.sp)
         }
-        Text("▶", color = PURPLE, fontSize = 21.sp)
+        HeartButton(favorite, 42.dp) { on(index) }
+        Spacer(Modifier.width(8.dp))
+        PlayCircleButton(40.dp) { on(index) }
     }
 }
 
 @Composable
 private fun ChannelLogo(index: Int, name: String, size: Dp = 40.dp) {
-    val palettes = listOf(
-        listOf(Color(0xFF2E6CD4), Color(0xFF203C86)), listOf(Color(0xFF18A85C), Color(0xFF0E6D42)), listOf(Color(0xFFE53935), Color(0xFF9E2222)),
-        listOf(Color(0xFF4E7EA8), Color(0xFF243A5C)), listOf(Color(0xFF5E9AD6), Color(0xFF284465)), listOf(Color(0xFFE34B32), Color(0xFF9B271A)), listOf(Color(0xFFF08A22), Color(0xFF9B4E0B))
-    )
+    val palettes = listOf(listOf(Color(0xFF2E6CD4), Color(0xFF203C86)), listOf(Color(0xFF18A85C), Color(0xFF0E6D42)), listOf(Color(0xFFE53935), Color(0xFF9E2222)), listOf(Color(0xFF4E7EA8), Color(0xFF243A5C)), listOf(Color(0xFF5E9AD6), Color(0xFF284465)), listOf(Color(0xFFE34B32), Color(0xFF9B271A)), listOf(Color(0xFFF08A22), Color(0xFF9B4E0B)))
     val colors = palettes[index % palettes.size]
     val short = when {
         name.contains("Крым", true) -> "24"
@@ -236,13 +248,16 @@ private fun ChannelLogo(index: Int, name: String, size: Dp = 40.dp) {
 }
 
 @Composable
-private fun PlayerScreen(channels: List<Channel>, index: Int, onSelect: (Int) -> Unit, onBack: () -> Unit) {
+private fun PlayerScreen(channels: List<Channel>, index: Int, isFavorite: Boolean, onToggleFavorite: () -> Unit, onSelect: (Int) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     val activity = context as ComponentActivity
     val channel = channels[index]
     var fullscreen by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
     var isPlaying by remember { mutableStateOf(true) }
+    var showControls by remember { mutableStateOf(true) }
+    var controlsTick by remember { mutableIntStateOf(0) }
+
     val player = remember(channel.url, channel.userAgent) {
         val httpFactory = DefaultHttpDataSource.Factory().setUserAgent(channel.userAgent.ifBlank { UA }).setAllowCrossProtocolRedirects(true).setConnectTimeoutMs(15000).setReadTimeoutMs(20000)
         ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(httpFactory)).build().apply {
@@ -254,8 +269,10 @@ private fun PlayerScreen(channels: List<Channel>, index: Int, onSelect: (Int) ->
             setMediaItem(MediaItem.fromUri(channel.url)); prepare()
         }
     }
+
     DisposableEffect(player) { onDispose { player.release(); activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT } }
     BackHandler { if (fullscreen) fullscreen = false else onBack() }
+
     LaunchedEffect(fullscreen) {
         if (fullscreen) {
             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -266,19 +283,46 @@ private fun PlayerScreen(channels: List<Channel>, index: Int, onSelect: (Int) ->
             WindowCompat.setDecorFitsSystemWindows(activity.window, true)
             WindowInsetsControllerCompat(activity.window, activity.window.decorView).show(WindowInsetsCompat.Type.systemBars())
         }
+        showControls = true
+        controlsTick++
     }
+
+    LaunchedEffect(controlsTick, showControls) {
+        if (showControls) {
+            delay(3000)
+            showControls = false
+        }
+    }
+
     if (fullscreen) {
-        Box(Modifier.fillMaxSize().background(Color.Black)) {
+        Box(Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) {
+            detectTapGestures(onTap = { showControls = !showControls; controlsTick++ })
+        }) {
             VideoView(player, true, Modifier.fillMaxSize())
-            Box(Modifier.align(Alignment.Center)) { PlayerButtons(player, isPlaying, { fullscreen = false }, Modifier) }
-            errorText?.let { ErrorMessage(it, Modifier.align(Alignment.Center).padding(top = 64.dp)) }
+            if (showControls) {
+                PlayCircleButton(58.dp) { if (player.isPlaying) player.pause() else player.play(); showControls = true; controlsTick++ }
+                Box(Modifier.align(Alignment.Center)) {
+                    PlayPauseIcon(isPlaying, 28.dp)
+                }
+                FullscreenButton(46.dp, Modifier.align(Alignment.BottomEnd).padding(18.dp)) { fullscreen = false }
+                Box(Modifier.align(Alignment.Center), Modifier) {
+                    PlayCircleButton(74.dp) { if (player.isPlaying) player.pause() else player.play(); controlsTick++ }
+                }
+            }
+            errorText?.let { ErrorMessage(it, Modifier.align(Alignment.Center).padding(top = 90.dp)) }
         }
     } else {
         Column(Modifier.fillMaxSize().background(BG)) {
-            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black)) {
+            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black).pointerInput(Unit) {
+                detectTapGestures(onTap = { showControls = !showControls; controlsTick++ })
+            }) {
                 VideoView(player, false, Modifier.fillMaxSize())
-                Box(Modifier.align(Alignment.TopStart).padding(10.dp).size(40.dp).background(Color.Black.copy(.5f), CircleShape).clickable { onBack() }, Alignment.Center) { Text("‹", color = Color.White, fontSize = 26.sp) }
-                PlayerButtons(player, isPlaying, { fullscreen = true }, Modifier.align(Alignment.BottomEnd))
+                if (showControls) {
+                    Box(Modifier.align(Alignment.TopStart).padding(10.dp).size(40.dp).background(Color.Black.copy(.52f), CircleShape).clickable { onBack() }, Alignment.Center) { Text("‹", color = Color.White, fontSize = 26.sp) }
+                    HeartButton(isFavorite, 42.dp, Modifier.align(Alignment.TopEnd).padding(10.dp)) { onToggleFavorite(); showControls = true; controlsTick++ }
+                    Box(Modifier.align(Alignment.Center)) { PlayPauseIcon(isPlaying, 34.dp); Modifier.clickable { if (player.isPlaying) player.pause() else player.play(); controlsTick++ } }
+                    FullscreenButton(46.dp, Modifier.align(Alignment.BottomEnd).padding(12.dp)) { fullscreen = true; controlsTick++ }
+                }
                 errorText?.let { ErrorMessage(it, Modifier.align(Alignment.Center)) }
             }
             Text("${index + 1}. ${channel.name}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 3.dp))
@@ -293,7 +337,7 @@ private fun PlayerScreen(channels: List<Channel>, index: Int, onSelect: (Int) ->
                             Text(next.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(next.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 10.sp)
                         }
-                        Box(Modifier.size(34.dp).background(Color(0xFF4C1D95), CircleShape), Alignment.Center) { Text("▶", color = Color.White, fontSize = 13.sp) }
+                        PlayCircleButton(34.dp) { onSelect(nextIndex) }
                     }
                 }
             }
@@ -302,35 +346,58 @@ private fun PlayerScreen(channels: List<Channel>, index: Int, onSelect: (Int) ->
 }
 
 @Composable
-private fun VideoView(player: ExoPlayer, zoom: Boolean, modifier: Modifier) {
-    AndroidView(modifier = modifier, factory = { ctx -> PlayerView(ctx).apply { this.player = player; keepScreenOn = true; useController = false; resizeMode = if (zoom) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT } }, update = { it.player = player; it.useController = false; it.resizeMode = if (zoom) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT })
+private fun PlayCircleButton(size: Dp = 42.dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.size(size).background(Color(0xFF4C1D95), CircleShape).clickable(onClick = onClick), Alignment.Center) { PlayPauseIcon(false, size * .34f) }
 }
 
 @Composable
-private fun PlayerButtons(player: ExoPlayer, isPlaying: Boolean, onFullscreen: () -> Unit, modifier: Modifier) {
-    Row(modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(42.dp).background(Color.Black.copy(.70f), CircleShape).clickable { if (player.isPlaying) player.pause() else player.play() }, contentAlignment = Alignment.Center) {
-            Canvas(Modifier.size(20.dp)) {
-                val w = size.width; val h = size.height
-                if (isPlaying) {
-                    drawRoundRect(Color.White, Offset(w * .18f, h * .16f), Size(w * .23f, h * .68f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f))
-                    drawRoundRect(Color.White, Offset(w * .59f, h * .16f), Size(w * .23f, h * .68f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f))
-                } else {
-                    val p = Path().apply { moveTo(w * .30f, h * .14f); lineTo(w * .30f, h * .86f); lineTo(w * .80f, h * .50f); close() }
-                    drawPath(p, Color.White)
-                }
-            }
-        }
-        Box(Modifier.size(40.dp).background(Color.Black.copy(.62f), CircleShape).clickable { onFullscreen() }, contentAlignment = Alignment.Center) {
-            Canvas(Modifier.size(18.dp)) {
-                val sw = 2f
-                drawLine(Color.White, Offset(3f, 7f), Offset(3f, 3f), sw); drawLine(Color.White, Offset(3f, 3f), Offset(7f, 3f), sw)
-                drawLine(Color.White, Offset(11f, 3f), Offset(15f, 3f), sw); drawLine(Color.White, Offset(15f, 3f), Offset(15f, 7f), sw)
-                drawLine(Color.White, Offset(3f, 11f), Offset(3f, 15f), sw); drawLine(Color.White, Offset(3f, 15f), Offset(7f, 15f), sw)
-                drawLine(Color.White, Offset(11f, 15f), Offset(15f, 15f), sw); drawLine(Color.White, Offset(15f, 15f), Offset(15f, 11f), sw)
-            }
+private fun PlayPauseIcon(isPlaying: Boolean, iconSize: Dp) {
+    Canvas(Modifier.size(iconSize)) {
+        val w = size.width; val h = size.height
+        if (isPlaying) {
+            drawRoundRect(Color.White, Offset(w * .18f, h * .16f), Size(w * .23f, h * .68f), CornerRadius(2f, 2f))
+            drawRoundRect(Color.White, Offset(w * .59f, h * .16f), Size(w * .23f, h * .68f), CornerRadius(2f, 2f))
+        } else {
+            val p = Path().apply { moveTo(w * .30f, h * .14f); lineTo(w * .30f, h * .86f); lineTo(w * .80f, h * .50f); close() }
+            drawPath(p, Color.White)
         }
     }
+}
+
+@Composable
+private fun FullscreenButton(size: Dp = 46.dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.size(size).background(Color.Black.copy(.65f), CircleShape).clickable(onClick = onClick), Alignment.Center) {
+        Canvas(Modifier.size(size * .40f)) {
+            val sw = 2.2f
+            drawLine(Color.White, Offset(2f, 7f), Offset(2f, 2f), sw); drawLine(Color.White, Offset(2f, 2f), Offset(7f, 2f), sw)
+            drawLine(Color.White, Offset(size.width - 7f, 2f), Offset(size.width - 2f, 2f), sw); drawLine(Color.White, Offset(size.width - 2f, 2f), Offset(size.width - 2f, 7f), sw)
+            drawLine(Color.White, Offset(2f, size.height - 7f), Offset(2f, size.height - 2f), sw); drawLine(Color.White, Offset(2f, size.height - 2f), Offset(7f, size.height - 2f), sw)
+            drawLine(Color.White, Offset(size.width - 7f, size.height - 2f), Offset(size.width - 2f, size.height - 2f), sw); drawLine(Color.White, Offset(size.width - 2f, size.height - 2f), Offset(size.width - 2f, size.height - 7f), sw)
+        }
+    }
+}
+
+@Composable
+private fun HeartButton(favorite: Boolean, size: Dp = 42.dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.size(size).background(Color.Black.copy(.62f), CircleShape).clickable(onClick = onClick), Alignment.Center) {
+        Canvas(Modifier.size(size * .48f)) {
+            val w = size.width; val h = size.height
+            val heart = Path().apply {
+                moveTo(w * .50f, h * .88f)
+                cubicTo(w * .08f, h * .58f, w * .12f, h * .15f, w * .38f, h * .22f)
+                cubicTo(w * .47f, h * .24f, w * .50f, h * .34f, w * .50f, h * .40f)
+                cubicTo(w * .50f, h * .34f, w * .53f, h * .24f, w * .62f, h * .22f)
+                cubicTo(w * .88f, h * .15f, w * .92f, h * .58f, w * .50f, h * .88f)
+            }
+            drawPath(heart, if (favorite) PURPLE else Color.White, style = Stroke(width = 3.0f))
+            if (favorite) drawPath(heart, PURPLE)
+        }
+    }
+}
+
+@Composable
+private fun VideoView(player: ExoPlayer, zoom: Boolean, modifier: Modifier) {
+    AndroidView(modifier = modifier, factory = { ctx -> PlayerView(ctx).apply { this.player = player; keepScreenOn = true; useController = false; resizeMode = if (zoom) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT } }, update = { it.player = player; it.useController = false; it.resizeMode = if (zoom) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT })
 }
 
 @Composable
@@ -367,16 +434,31 @@ private fun MovieCard(movie: Movie) {
 }
 
 @Composable
-private fun FavoritesPage() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Canvas(Modifier.size(48.dp)) {
-                val heart = Path().apply { moveTo(24f, 40f); cubicTo(5f, 27f, 6f, 11f, 15f, 10f); cubicTo(20f, 9f, 23f, 13f, 24f, 16f); cubicTo(25f, 13f, 28f, 9f, 33f, 10f); cubicTo(42f, 11f, 43f, 27f, 24f, 40f); close() }
-                drawPath(heart, Color(0xFFC7CDD8), style = Stroke(width = 3.2f))
+private fun FavoritesPage(channels: List<Channel>, favorites: Set<String>, onPlay: (Int) -> Unit, onToggle: (Channel) -> Unit) {
+    val items = channels.withIndex().filter { it.value.url in favorites }
+    if (items.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                HeartButton(false, 52.dp) {}
+                Spacer(Modifier.height(12.dp))
+                Text("Избранное пока пусто", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text("Нажмите на сердечко у канала", color = MUTED, fontSize = 13.sp)
             }
-            Spacer(Modifier.height(12.dp))
-            Text("Избранное пока пусто", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Text("Добавим избранное позже", color = MUTED, fontSize = 13.sp)
+        }
+    } else {
+        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentPadding = PaddingValues(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            itemsIndexed(items) { _, item ->
+                Row(Modifier.fillMaxWidth().height(82.dp).background(CARD, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ChannelAvatar(item.index, item.value)
+                    Column(Modifier.padding(start = 14.dp).weight(1f).clickable { onPlay(item.index) }) {
+                        Text(item.value.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(item.value.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 12.sp)
+                    }
+                    HeartButton(true, 42.dp) { onToggle(item.value) }
+                    Spacer(Modifier.width(8.dp))
+                    PlayCircleButton(40.dp) { onPlay(item.index) }
+                }
+            }
         }
     }
 }
@@ -388,15 +470,12 @@ private fun NavIcon(id: String, selected: Boolean) {
         val w = size.width; val h = size.height
         when (id) {
             "channels" -> {
-                drawRoundRect(tint, Offset(w * .14f, h * .22f), Size(w * .72f, h * .56f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f), style = Stroke(width = 2.5f))
+                drawRoundRect(tint, Offset(w * .14f, h * .22f), Size(w * .72f, h * .56f), CornerRadius(4f, 4f), style = Stroke(width = 2.5f))
                 drawLine(tint, Offset(w * .30f, h * .88f), Offset(w * .70f, h * .88f), strokeWidth = 2.5f)
-                drawCircle(PURPLE, radius = 2f, center = Offset(w * .50f, h * .50f))
+                drawCircle(PURPLE, 2f, Offset(w * .50f, h * .50f))
             }
             "movies" -> {
-                drawRoundRect(tint, Offset(w * .13f, h * .18f), Size(w * .74f, h * .62f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f), style = Stroke(width = 2.3f))
-                drawLine(tint, Offset(w * .27f, h * .18f), Offset(w * .32f, h * .38f), strokeWidth = 2f)
-                drawLine(tint, Offset(w * .46f, h * .18f), Offset(w * .51f, h * .38f), strokeWidth = 2f)
-                drawLine(tint, Offset(w * .65f, h * .18f), Offset(w * .70f, h * .38f), strokeWidth = 2f)
+                drawRoundRect(tint, Offset(w * .13f, h * .18f), Size(w * .74f, h * .62f), CornerRadius(3f, 3f), style = Stroke(width = 2.3f))
                 val play = Path().apply { moveTo(w * .42f, h * .46f); lineTo(w * .42f, h * .69f); lineTo(w * .68f, h * .57f); close() }
                 drawPath(play, PURPLE)
             }
