@@ -13,7 +13,6 @@ for src_name, dst_name in {
     if src.exists():
         dst = RES / dst_name
         dst.write_bytes(base64.b64decode(src.read_text().strip()))
-        src.unlink(missing_ok=True)
 
 source = ROOT / 'app/src/main/java/com/example/iptvplayer/MainActivity.kt'
 text = source.read_text()
