@@ -8,7 +8,7 @@
         android:allowBackup="false"
         android:supportsRtl="true">
         <activity
-            android:name=".MainActivityFixed"
+            android:name=".MainActivity"
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|smallestScreenSize"
             android:exported="true">
