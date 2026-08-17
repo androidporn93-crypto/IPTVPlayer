@@ -92,11 +92,70 @@ private fun IPTVApp() {
 
 @Composable private fun Home(tv: () -> Unit, movie: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Box(Modifier.fillMaxWidth().height(150.dp).background(Brush.linearGradient(listOf(Color(0xFF6D28D9), Color(0xFF172B8A))), RoundedCornerShape(22.dp)).padding(20.dp)) { Column { Text("TV", color = Color.White.copy(.28f), fontSize = 54.sp, fontWeight = FontWeight.Black); Text("Смотрите любимые каналы", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold); Text("и доступное кино", color = Color.White.copy(.8f)) } }
-        Spacer(Modifier.height(18.dp)); HomeBtn("📺", "ТВ каналы", "Ваш M3U плейлист", tv); HomeBtn("🎬", "Фильмы", "Internet Archive · открытые лицензии", movie)
+        Box(Modifier.fillMaxWidth().height(150.dp).background(Brush.linearGradient(listOf(Color(0xFF6D28D9), Color(0xFF172B8A))), RoundedCornerShape(22.dp)).padding(20.dp)) {
+            Column {
+                Text("TV", color = Color.White.copy(.28f), fontSize = 54.sp, fontWeight = FontWeight.Black)
+                Text("Смотрите любимые каналы", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text("и доступное кино", color = Color.White.copy(.8f))
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        HomeBtn("tv", "ТВ каналы", "Ваш M3U плейлист", tv)
+        HomeBtn("movie", "Фильмы", "Internet Archive · открытые лицензии", movie)
     }
 }
-@Composable private fun HomeBtn(icon: String, title: String, sub: String, on: () -> Unit) { Row(Modifier.fillMaxWidth().padding(vertical = 5.dp).background(CARD, RoundedCornerShape(16.dp)).clickable(onClick = on).padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Text(icon, fontSize = 30.sp); Column(Modifier.padding(start = 14.dp).weight(1f)) { Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold); Text(sub, color = MUTED, fontSize = 12.sp) }; Text("›", color = PURPLE, fontSize = 28.sp) } }
+
+@Composable private fun HomeIcon(kind: String) {
+    Box(Modifier.size(54.dp).background(Color(0xFF273144), RoundedCornerShape(15.dp)), Alignment.Center) {
+        Canvas(Modifier.size(54.dp)) {
+            if (kind == "tv") {
+                drawRoundRect(
+                    color = Color.White,
+                    topLeft = androidx.compose.ui.geometry.Offset(10f, 13f),
+                    size = androidx.compose.ui.geometry.Size(34f, 23f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f)
+                )
+                drawLine(Color(0xFF273144), androidx.compose.ui.geometry.Offset(10f, 25f), androidx.compose.ui.geometry.Offset(44f, 25f), strokeWidth = 3f)
+                drawLine(Color.White, androidx.compose.ui.geometry.Offset(22f, 39f), androidx.compose.ui.geometry.Offset(32f, 39f), strokeWidth = 4f)
+                drawLine(Color.White, androidx.compose.ui.geometry.Offset(27f, 36f), androidx.compose.ui.geometry.Offset(27f, 42f), strokeWidth = 4f)
+                drawCircle(Color(0xFF6D28D9), radius = 4f, center = androidx.compose.ui.geometry.Offset(27f, 19f))
+            } else {
+                drawRoundRect(
+                    color = Color.White,
+                    topLeft = androidx.compose.ui.geometry.Offset(10f, 10f),
+                    size = androidx.compose.ui.geometry.Size(34f, 34f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(5f, 5f)
+                )
+                val p = Path().apply {
+                    moveTo(22f, 19f)
+                    lineTo(22f, 35f)
+                    lineTo(35f, 27f)
+                    close()
+                }
+                drawPath(p, Color(0xFF273144))
+                drawCircle(Color(0xFF6D28D9), radius = 2.2f, center = androidx.compose.ui.geometry.Offset(14f, 14f))
+                drawCircle(Color(0xFF6D28D9), radius = 2.2f, center = androidx.compose.ui.geometry.Offset(40f, 14f))
+                drawCircle(Color(0xFF6D28D9), radius = 2.2f, center = androidx.compose.ui.geometry.Offset(14f, 40f))
+                drawCircle(Color(0xFF6D28D9), radius = 2.2f, center = androidx.compose.ui.geometry.Offset(40f, 40f))
+            }
+        }
+    }
+}
+
+@Composable private fun HomeBtn(kind: String, title: String, sub: String, on: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 5.dp).background(CARD, RoundedCornerShape(16.dp)).clickable(onClick = on).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        HomeIcon(kind)
+        Column(Modifier.padding(start = 14.dp).weight(1f)) {
+            Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text(sub, color = MUTED, fontSize = 12.sp)
+        }
+        Text("›", color = PURPLE, fontSize = 28.sp)
+    }
+}
+
 @Composable private fun Channels(channels: List<Channel>, q: String, onQ: (String) -> Unit, loading: Boolean, onPlay: (Int) -> Unit) { Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) { OutlinedTextField(q, onQ, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Поиск канала", color = MUTED) }); if (loading) Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = PURPLE) } else { val list = channels.withIndex().filter { it.value.name.contains(q, true) || it.value.group.contains(q, true) }; LazyColumn(contentPadding = PaddingValues(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) { itemsIndexed(list) { _, item -> ChannelRow(item.index, item.value, onPlay) } } } } }
 @Composable private fun ChannelRow(index: Int, c: Channel, on: (Int) -> Unit) { Row(Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(14.dp)).clickable { on(index) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(48.dp).background(Color(0xFF273144), RoundedCornerShape(12.dp)), Alignment.Center) { Text("${index + 1}", color = Color.White, fontWeight = FontWeight.Bold) }; Column(Modifier.padding(start = 12.dp).weight(1f)) { Text(c.name, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(c.group.ifBlank { "ТВ канал" }, color = MUTED, fontSize = 12.sp) }; Text("▶", color = PURPLE) } }
 
@@ -125,8 +184,18 @@ private fun IPTVApp() {
         Box(Modifier.size(54.dp).background(Color.Black.copy(.78f), CircleShape).clickable { if (player.isPlaying) player.pause() else player.play() }, Alignment.Center) {
             Canvas(Modifier.size(54.dp)) {
                 if (isPlaying) {
-                    drawRoundRect(Color.White, left = 19f, top = 16f, right = 25f, bottom = 38f, cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f))
-                    drawRoundRect(Color.White, left = 29f, top = 16f, right = 35f, bottom = 38f, cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f))
+                    drawRoundRect(
+                        color = Color.White,
+                        topLeft = androidx.compose.ui.geometry.Offset(19f, 16f),
+                        size = androidx.compose.ui.geometry.Size(6f, 22f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f)
+                    )
+                    drawRoundRect(
+                        color = Color.White,
+                        topLeft = androidx.compose.ui.geometry.Offset(29f, 16f),
+                        size = androidx.compose.ui.geometry.Size(6f, 22f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f)
+                    )
                 } else {
                     val p = Path().apply { moveTo(21f, 15f); lineTo(21f, 39f); lineTo(39f, 27f); close() }
                     drawPath(p, Color.White)
@@ -149,7 +218,7 @@ private fun IPTVApp() {
     }
 }
 @Composable private fun ErrorMessage(text: String, modifier: Modifier) { Text(text, color = Color.White, modifier = modifier.padding(24.dp), fontSize = 14.sp) }
-@Composable private fun Movies(movies: List<Movie>, q: String, onQ: (String) -> Unit, loading: Boolean) { val filtered = movies.filter { it.title.contains(q, true) || it.description.contains(q, true) }; Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) { OutlinedTextField(q, onQ, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Поиск фильмов", color = MUTED) }); Spacer(Modifier.height(12.dp)); Text("🎬 Internet Archive", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold); Text("Public Domain / Creative Commons", color = MUTED, fontSize = 12.sp); when { loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = PURPLE) }; filtered.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Каталог пуст или источник недоступен", color = MUTED) }; else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 20.dp)) { itemsIndexed(filtered) { _, movie -> MovieCard(movie) } } } } }
+@Composable private fun Movies(movies: List<Movie>, q: String, onQ: (String) -> Unit, loading: Boolean) { val filtered = movies.filter { it.title.contains(q, true) || it.description.contains(q, true) }; Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) { OutlinedTextField(q, onQ, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Поиск фильмов", color = MUTED) }); Spacer(Modifier.height(12.dp)); Text("Internet Archive", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold); Text("Public Domain / Creative Commons", color = MUTED, fontSize = 12.sp); when { loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = PURPLE) }; filtered.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Каталог пуст или источник недоступен", color = MUTED) }; else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 20.dp)) { itemsIndexed(filtered) { _, movie -> MovieCard(movie) } } } } }
 @Composable private fun MovieCard(movie: Movie) { val context = LocalContext.current; Row(Modifier.fillMaxWidth().background(CARD, RoundedCornerShape(16.dp)).clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://archive.org/details/${movie.id}"))) }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) { AsyncImage(model = "https://archive.org/services/img/${movie.id}", contentDescription = movie.title, modifier = Modifier.width(88.dp).height(118.dp).background(Color(0xFF222A35), RoundedCornerShape(12.dp))); Column(Modifier.padding(start = 14.dp).weight(1f)) { Text(movie.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis); if (movie.year.isNotBlank()) Text(movie.year, color = PURPLE, fontSize = 12.sp); Text(movie.description.ifBlank { "Открыть карточку фильма в Internet Archive" }, color = MUTED, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis); Text("▶ Открыть и смотреть", color = PURPLE, fontSize = 13.sp, fontWeight = FontWeight.Bold) } } }
 @Composable private fun BottomBar(page: String, onPage: (String) -> Unit) { NavigationBar(containerColor = Color(0xFF0D1117)) { listOf(Triple("home", "⌂", "Главная"), Triple("channels", "▣", "ТВ"), Triple("movies", "🎬", "Фильмы"), Triple("settings", "⚙", "Ещё")).forEach { (id, icon, label) -> NavigationBarItem(selected = page == id, onClick = { onPage(id) }, icon = { Text(icon, fontSize = 20.sp) }, label = { Text(label, fontSize = 10.sp) }) } } }
 private fun loadM3u(): List<Channel> = try { parseM3u(URL(PLAYLIST_URL).readText()) } catch (_: Exception) { emptyList() }
