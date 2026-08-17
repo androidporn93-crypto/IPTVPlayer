@@ -31,19 +31,12 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Normalize Kotlin source
+      - name: Verify source and asset
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p = Path('app/src/main/java/com/example/iptvplayer/MainActivity.kt')
-          s = p.read_text()
-          old = 'listOf(Triple("home", "Главная"), Triple("channels", "ТВ"), Triple("movies", "Фильмы"), Triple("settings", "Ещё"))'
-          if old in s:
-              s = s.replace(old, 'listOf("home" to "Главная", "channels" to "ТВ", "movies" to "Фильмы", "settings" to "Ещё")', 1)
-          p.write_text(s)
-          print('source normalization complete')
-          PY
+          test -f app/src/main/java/com/example/iptvplayer/MainActivity.kt
+          test -f app/src/main/res/drawable-nodpi/home_movies_icon.png
+          grep -q 'R.drawable.home_movies_icon' app/src/main/java/com/example/iptvplayer/MainActivity.kt
+          grep -q 'listOf("movies" to "Фильмы", "channels" to "ТВ", "favorites" to "Избранное")' app/src/main/java/com/example/iptvplayer/MainActivity.kt
 
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
