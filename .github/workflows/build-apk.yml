@@ -31,10 +31,10 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Apply player UI patch
-        run: python3 scripts/prepare_artwork.py
+      - name: Apply final reference UI
+        run: python3 scripts/finalize_ui.py
 
-      - name: Fix compile issues
+      - name: Fix Compose compile issues
         run: python3 scripts/fix_compile.py
 
       - name: Build debug APK
@@ -45,3 +45,5 @@ jobs:
         with:
           name: IPTVPlayer-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 90
