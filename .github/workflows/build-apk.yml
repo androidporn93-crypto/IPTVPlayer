@@ -31,6 +31,19 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Fix Kotlin source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/com/example/iptvplayer/MainActivity.kt')
+          s = p.read_text()
+          old = 'listOf(Triple("home", "Главная"), Triple("channels", "ТВ"), Triple("movies", "Фильмы"), Triple("settings", "Ещё"))'
+          new = 'listOf("home" to "Главная", "channels" to "ТВ", "movies" to "Фильмы", "settings" to "Ещё")'
+          if old not in s:
+              raise SystemExit('Expected BottomBar list not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
