@@ -3,20 +3,30 @@ from pathlib import Path
 source = Path('app/src/main/java/com/example/iptvplayer/MainActivity.kt')
 text = source.read_text()
 
-# FullscreenButton/HeartButton have a Dp parameter named `size`, which can
-# shadow Canvas DrawScope.size. Always use the DrawScope receiver explicitly.
-text = text.replace('size.width - 7f', 'this.size.width - 7f')
-text = text.replace('size.width - 2f', 'this.size.width - 2f')
-text = text.replace('size.height - 7f', 'this.size.height - 7f')
-text = text.replace('size.height - 2f', 'this.size.height - 2f')
-text = text.replace('val w = size.width; val h = size.height', 'val w = this.size.width; val h = this.size.height')
+# Compose DrawScope exposes its canvas Size as `this.size`. Several composables
+# also have a Dp parameter named `size`, which shadows that receiver.
+text = text.replace('size.width', 'this.size.width')
+text = text.replace('size.height', 'this.size.height')
 
-# Invalid Box overload: the second positional argument was a Modifier,
-# but Compose expects Alignment there.
-text = text.replace('Box(Modifier.align(Alignment.Center), Modifier) {', 'Box(Modifier.align(Alignment.Center)) {')
+# Be explicit with Box arguments. Some Compose overload resolution in the
+# current source was treating the second positional argument incorrectly.
+text = text.replace(
+    'Box(modifier.size(size).background(Color(0xFF4C1D95), CircleShape).clickable(onClick = onClick), Alignment.Center)',
+    'Box(modifier = modifier.size(size).background(Color(0xFF4C1D95), CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center)'
+)
+text = text.replace(
+    'Box(modifier.size(size).background(Color.Black.copy(.65f), CircleShape).clickable(onClick = onClick), Alignment.Center)',
+    'Box(modifier = modifier.size(size).background(Color.Black.copy(.65f), CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center)'
+)
+text = text.replace(
+    'Box(modifier.size(size).background(Color.Black.copy(.62f), CircleShape).clickable(onClick = onClick), Alignment.Center)',
+    'Box(modifier = modifier.size(size).background(Color.Black.copy(.62f), CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center)'
+)
 
-# Remove the bottom navigation bar completely and make the top area/home
-# closer to the supplied reference design.
+# Previous patch carried an invalid two-positional-argument Box call.
+text = text.replace('Box(Modifier.align(Alignment.Center), Modifier) {', 'Box(modifier = Modifier.align(Alignment.Center)) {')
+
+# Remove bottom navigation completely and keep the refreshed home layout.
 old_scaffold = '''        Scaffold(containerColor = BG, bottomBar = { BottomBar(page) { page = it; query = "" } }) { padding ->
             Column(Modifier.fillMaxSize().background(BG).padding(padding)) {
                 Text("IPTV Player", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(18.dp))
@@ -113,4 +123,4 @@ if old_home in text:
     text = text.replace(old_home, new_home, 1)
 
 source.write_text(text)
-print('Fixed compile issues and refreshed home layout without bottom navigation')
+print('Fixed Compose compile errors and retained bottom-navigation removal')
