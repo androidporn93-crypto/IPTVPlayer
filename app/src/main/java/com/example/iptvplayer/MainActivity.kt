@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -86,8 +87,6 @@ fun IPTVApp() {
             primary = AppColors.PurpleAccent
         )
     ) {
-        // The home screen is intentionally full-screen. Navigation is done by the cards
-        // so the home screen matches the supplied reference without the old bottom bar.
         Scaffold(containerColor = AppColors.Background) { innerPadding ->
             Box(Modifier.padding(innerPadding)) {
                 when (screen) {
@@ -114,10 +113,10 @@ fun IPTVApp() {
     }
 }
 
-private fun loadAssetImage(context: Context, assetName: String) = try {
+private fun loadAssetImage(context: Context, assetName: String): ImageBitmap? = try {
     val encoded = context.assets.open(assetName).bufferedReader().use { it.readText() }
-    BitmapFactory.decodeByteArray(Base64.decode(encoded, Base64.DEFAULT), 0,
-        Base64.decode(encoded, Base64.DEFAULT).size)?.asImageBitmap()
+    val bytes = Base64.decode(encoded, Base64.DEFAULT)
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
 } catch (_: Exception) {
     null
 }
@@ -139,7 +138,6 @@ private fun HomeScreen(
             .padding(horizontal = 20.dp)
     ) {
         Spacer(Modifier.height(14.dp))
-
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -158,7 +156,6 @@ private fun HomeScreen(
         }
 
         Spacer(Modifier.height(18.dp))
-
         Box(
             Modifier
                 .fillMaxWidth()
@@ -181,22 +178,9 @@ private fun HomeScreen(
         }
 
         Spacer(Modifier.height(18.dp))
-
-        HomeCard(
-            title = "ТВ каналы",
-            subtitle = "Ваш M3U плейлист",
-            image = channelsImage,
-            onClick = onOpenChannels
-        )
-
+        HomeCard("ТВ каналы", "Ваш M3U плейлист", channelsImage, onOpenChannels)
         Spacer(Modifier.height(14.dp))
-
-        HomeCard(
-            title = "Фильмы",
-            subtitle = "Internet Archive · открытые лицензии",
-            image = moviesImage,
-            onClick = onOpenMovies
-        )
+        HomeCard("Фильмы", "Internet Archive · открытые лицензии", moviesImage, onOpenMovies)
     }
 }
 
@@ -204,7 +188,7 @@ private fun HomeScreen(
 private fun HomeCard(
     title: String,
     subtitle: String,
-    image: androidx.compose.ui.graphics.ImageBitmap?,
+    image: ImageBitmap?,
     onClick: () -> Unit
 ) {
     Row(
@@ -225,8 +209,10 @@ private fun HomeCard(
                 modifier = Modifier.width(150.dp).fillMaxHeight().clip(RoundedCornerShape(16.dp))
             )
         } else {
-            Box(Modifier.width(150.dp).fillMaxHeight().clip(RoundedCornerShape(16.dp)).background(Color(0xFF1F1D2B)),
-                contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.width(150.dp).fillMaxHeight().clip(RoundedCornerShape(16.dp)).background(Color(0xFF1F1D2B)),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(title.take(2), color = AppColors.PurpleAccent, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
         }
@@ -235,8 +221,7 @@ private fun HomeCard(
             Spacer(Modifier.height(5.dp))
             Text(subtitle, color = AppColors.TextDim, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        Text("›", color = AppColors.PurpleAccent, fontSize = 38.sp, fontWeight = FontWeight.Normal,
-            modifier = Modifier.padding(end = 6.dp))
+        Text("›", color = AppColors.PurpleAccent, fontSize = 38.sp, modifier = Modifier.padding(end = 6.dp))
     }
 }
 
@@ -294,9 +279,7 @@ fun PlayerScreen(channel: Channel, onBack: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val player = remember(channel.url) {
         ExoPlayer.Builder(context).build().apply {
-            val itemBuilder = MediaItem.Builder().setUri(channel.url)
-            channel.userAgent?.let { }
-            setMediaItem(itemBuilder.build())
+            setMediaItem(MediaItem.Builder().setUri(channel.url).build())
             prepare()
             playWhenReady = true
         }
@@ -312,13 +295,10 @@ fun PlayerScreen(channel: Channel, onBack: () -> Unit) {
     }
 }
 
-private fun loadM3u(url: String): List<Channel> {
-    return try {
-        val text = URL(url).readText()
-        parseM3u(text)
-    } catch (_: Exception) {
-        emptyList()
-    }
+private fun loadM3u(url: String): List<Channel> = try {
+    parseM3u(URL(url).readText())
+} catch (_: Exception) {
+    emptyList()
 }
 
 private fun parseM3u(text: String): List<Channel> {
@@ -332,8 +312,8 @@ private fun parseM3u(text: String): List<Channel> {
         when {
             line.startsWith("#EXTINF:", true) -> {
                 name = line.substringAfterLast(",").trim()
-                group = Regex("""group-title=\"([^\"]*)\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty()
-                logo = Regex("""tvg-logo=\"([^\"]*)\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1)
+                group = Regex("""group-title="([^"]*)""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty()
+                logo = Regex("""tvg-logo="([^"]*)""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1)
             }
             line.startsWith("#EXTVLCOPT:http-user-agent=", true) -> ua = line.substringAfter("=", "").trim()
             line.startsWith("#") || line.isBlank() -> Unit
