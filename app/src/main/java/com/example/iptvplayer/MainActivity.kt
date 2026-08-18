@@ -129,7 +129,6 @@ private fun HomeScreen(
     val context = LocalContext.current
     val channelsImage = remember { loadAssetImage(context, "iptv_channels_photo.webp.b64") }
     val moviesImage = remember { loadAssetImage(context, "movies_photo.webp.b64") }
-    val heroImage = remember { loadAssetImage(context, "hero_tv.png.b64") }
 
     Column(
         Modifier
@@ -163,18 +162,47 @@ private fun HomeScreen(
                 .clip(RoundedCornerShape(26.dp))
                 .background(Brush.linearGradient(listOf(AppColors.PurpleBright, AppColors.PurpleDark)))
                 .clickable { onOpenChannels() }
+                .padding(horizontal = 28.dp)
         ) {
-            if (heroImage != null) {
-                Image(
-                    bitmap = heroImage,
-                    contentDescription = "TV",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(26.dp))
-                )
-            } else {
-                Text("TV", color = Color.White, fontSize = 52.sp, fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.align(Alignment.Center))
+            Column(
+                Modifier.align(Alignment.CenterStart),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("TV", color = Color.White, fontSize = 50.sp, fontWeight = FontWeight.ExtraBold)
+                Spacer(Modifier.height(8.dp))
+                Text("Смотрите любимые", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("каналы и доступное", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("кино", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
+
+            Box(
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(205.dp)
+                    .height(125.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF11131A))
+            ) {
+                Box(
+                    Modifier
+                        .align(Alignment.Center)
+                        .size(58.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF6420C8)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("▶", color = Color.White, fontSize = 25.sp)
+                }
+            }
+            Box(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = (-70).dp, y = 4.dp)
+                    .width(70.dp)
+                    .height(9.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF11131A))
+            )
         }
 
         Spacer(Modifier.height(18.dp))
@@ -312,8 +340,8 @@ private fun parseM3u(text: String): List<Channel> {
         when {
             line.startsWith("#EXTINF:", true) -> {
                 name = line.substringAfterLast(",").trim()
-                group = Regex("""group-title="([^"]*)""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty()
-                logo = Regex("""tvg-logo="([^"]*)""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1)
+                group = Regex("""group-title=\"([^\"]*)\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1).orEmpty()
+                logo = Regex("""tvg-logo=\"([^\"]*)\"""", RegexOption.IGNORE_CASE).find(line)?.groupValues?.getOrNull(1)
             }
             line.startsWith("#EXTVLCOPT:http-user-agent=", true) -> ua = line.substringAfter("=", "").trim()
             line.startsWith("#") || line.isBlank() -> Unit
