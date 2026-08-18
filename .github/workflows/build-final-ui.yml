@@ -1,4 +1,4 @@
-name: Build Final UI APK
+name: IPTVPlayer — FINAL APK
 
 on:
   push:
@@ -33,13 +33,13 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Build debug APK
+      - name: Build FINAL APK
         run: gradle assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload FINAL APK
         uses: actions/upload-artifact@v4
         with:
-          name: IPTVPlayer-final-ui
+          name: IPTVPlayer-FINAL-HOME
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 90
