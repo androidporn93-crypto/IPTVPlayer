@@ -5,6 +5,8 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Force a fresh APK build from the current main commit after the final reference UI changes.
+
 jobs:
   build:
     runs-on: ubuntu-latest
