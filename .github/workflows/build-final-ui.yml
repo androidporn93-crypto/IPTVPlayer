@@ -33,15 +33,6 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Prepare final reference UI
-        run: python3 scripts/finalize_ui.py
-
-      - name: Apply supplied ZIP home artwork
-        run: python3 scripts/apply_zip_ui.py
-
-      - name: Fix Compose compile issues
-        run: python3 scripts/fix_compile.py
-
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
