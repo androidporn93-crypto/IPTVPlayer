@@ -1,14 +1,10 @@
 from pathlib import Path
-import base64
 import re
 
 source = Path('app/src/main/java/com/example/iptvplayer/MainActivity.kt')
-assets = Path('app/src/main/assets')
-res = Path('app/src/main/res/drawable-nodpi')
-res.mkdir(parents=True, exist_ok=True)
 text = source.read_text()
 
-# Keep the proven compile fixes from the previous working build.
+# Keep the compile fixes required by the existing Compose source.
 text = text.replace('size.width', 'this.size.width')
 text = text.replace('size.height', 'this.size.height')
 text = text.replace(
@@ -25,27 +21,20 @@ text = text.replace(
 )
 text = text.replace('Box(Modifier.align(Alignment.Center), Modifier) {', 'Box(modifier = Modifier.align(Alignment.Center)) {')
 
-# Put the real supplied hero artwork into drawable-nodpi.
-for src_name, dst_name in {
-    'hero_tv.png.b64': 'hero_tv.png',
-}.items():
-    src = assets / src_name
-    dst = res / dst_name
-    if src.exists():
-        dst.write_bytes(base64.b64decode(src.read_text().strip()))
-
 if 'import androidx.compose.ui.layout.ContentScale' not in text:
     text = text.replace(
         'import androidx.compose.ui.input.pointer.pointerInput\n',
         'import androidx.compose.ui.input.pointer.pointerInput\nimport androidx.compose.ui.layout.ContentScale\n'
     )
 
-# Remove bottom navigation from the root scaffold, preserving the working player/channels code.
+# Keep the existing navigation for channels/movies/favorites, but hide it only on Home.
 old_scaffold = '''        Scaffold(containerColor = BG, bottomBar = { BottomBar(page) { page = it; query = "" } }) { padding ->
             Column(Modifier.fillMaxSize().background(BG).padding(padding)) {
                 Text("IPTV Player", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(18.dp))
                 Box(Modifier.weight(1f)) {'''
-new_scaffold = '''        Scaffold(containerColor = BG) { padding ->
+new_scaffold = '''        Scaffold(containerColor = BG, bottomBar = {
+            if (page != "home") BottomBar(page) { page = it; query = "" }
+        }) { padding ->
             Column(Modifier.fillMaxSize().background(BG).padding(padding)) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
@@ -59,9 +48,11 @@ new_scaffold = '''        Scaffold(containerColor = BG) { padding ->
                     }
                 }
                 Box(Modifier.weight(1f)) {'''
+if old_scaffold not in text:
+    raise SystemExit('Expected working scaffold was not found')
 text = text.replace(old_scaffold, new_scaffold, 1)
 
-# Replace only the Home composables. Nothing below them (channels, movies, player) is touched.
+# Replace only Home and HomeBtn. Use only existing image resources; no new hero resource is loaded at runtime.
 pattern_home = re.compile(r'@Composable\s+private fun Home\b.*?\n}\n\n@Composable\s+private fun HomeBtn\b.*?\n}\n\n(?=@Composable|private fun)', re.S)
 new_home = '''@Composable
 private fun Home(tv: () -> Unit, movie: () -> Unit) {
@@ -71,23 +62,26 @@ private fun Home(tv: () -> Unit, movie: () -> Unit) {
                 .background(Brush.linearGradient(listOf(Color(0xFF7C2FE7), Color(0xFF2637A7))), RoundedCornerShape(24.dp))
                 .clip(RoundedCornerShape(24.dp))
         ) {
-            Image(
-                painter = painterResource(R.drawable.hero_tv),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            Box(
-                Modifier.fillMaxSize()
-                    .background(Brush.horizontalGradient(listOf(Color(0xFF5A20C8).copy(.82f), Color.Transparent, Color.Transparent)))
-            )
             Column(
-                Modifier.align(Alignment.CenterStart).padding(start = 22.dp).fillMaxWidth(.56f)
+                Modifier.align(Alignment.CenterStart)
+                    .padding(start = 22.dp)
+                    .fillMaxWidth(.58f)
             ) {
                 Text("TV", color = Color.White, fontSize = 58.sp, fontWeight = FontWeight.Black)
                 Text("Смотрите", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text("любимые каналы", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Text("и доступное кино", color = Color.White.copy(.86f), fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+            Box(
+                Modifier.align(Alignment.CenterEnd)
+                    .padding(end = 22.dp)
+                    .size(132.dp, 96.dp)
+                    .background(Color(0xFF10131A), RoundedCornerShape(18.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(Modifier.size(58.dp).background(Color(0xFF5B20C8), CircleShape), contentAlignment = Alignment.Center) {
+                    Text("▶", color = Color.White, fontSize = 28.sp)
+                }
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -125,4 +119,4 @@ if count != 1:
     raise SystemExit(f'Could not replace Home/HomeBtn; count={count}')
 
 source.write_text(new_text)
-print('Applied compile fixes and exact home-screen redesign only')
+print('Applied runtime-safe home redesign without new image resources')
