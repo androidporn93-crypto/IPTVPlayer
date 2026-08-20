@@ -7,15 +7,20 @@ import android.os.Bundle
 import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -48,13 +54,14 @@ private const val PREFS = "iptv_player"
 private const val FAVORITES = "favorites"
 
 private object AppColors {
-    val Background = Color(0xFF050713)
-    val Surface = Color(0x661A1835)
-    val SurfaceStrong = Color(0xCC15162A)
-    val Purple = Color(0xFFA447FF)
-    val PurpleDeep = Color(0xFF5520B8)
-    val Blue = Color(0xFF1769D5)
-    val TextDim = Color(0xFFA5A3B9)
+    val Background = Color(0xFF05030D)
+    val Surface = Color(0x66130D26)
+    val SurfaceStrong = Color(0xE6100C1F)
+    val Purple = Color(0xFFB04CFF)
+    val PurpleSoft = Color(0xFFDB8BFF)
+    val PurpleDeep = Color(0xFF5E18B8)
+    val White = Color(0xFFF7F4FF)
+    val TextDim = Color(0xFFAAA1C4)
 }
 
 data class Channel(
@@ -97,31 +104,28 @@ fun IPTVApp() {
         loading = false
     }
 
-    val categories = remember(channels, favorites) {
-        buildCategories(favorites)
-    }
-
     MaterialTheme(
         colorScheme = darkColorScheme(
             background = AppColors.Background,
             surface = AppColors.SurfaceStrong,
-            primary = AppColors.Purple
+            primary = AppColors.Purple,
+            onBackground = AppColors.White,
+            onSurface = AppColors.White
         )
     ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(spaceBackground())
-        ) {
+        Box(Modifier.fillMaxSize()) {
+            AnimatedSpaceBackground()
+
             when (screen) {
                 Screen.HOME -> HomeScreen(
-                    categories = categories,
                     channels = channels,
-                    onOpenCategory = {
-                        selectedCategory = it
+                    favorites = favorites,
+                    onOpenCategory = { categoryId ->
+                        selectedCategory = categoryId
                         screen = Screen.CHANNELS
                     }
                 )
+
                 Screen.CHANNELS -> ChannelListScreen(
                     categoryId = selectedCategory,
                     channels = channels,
@@ -136,6 +140,7 @@ fun IPTVApp() {
                         screen = Screen.PLAYER
                     }
                 )
+
                 Screen.PLAYER -> selected?.let { channel ->
                     PlayerScreen(channel, onBack = { screen = Screen.CHANNELS })
                 }
@@ -144,21 +149,353 @@ fun IPTVApp() {
     }
 }
 
-private fun spaceBackground(): Brush = Brush.radialGradient(
-    colors = listOf(
-        Color(0xFF24134F),
-        Color(0xFF101331),
-        AppColors.Background
-    ),
-    radius = 1200f
-)
+@Composable
+private fun AnimatedSpaceBackground() {
+    val transition = rememberInfiniteTransition(label = "space")
+    val pulse by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.75f,
+        animationSpec = infiniteRepeatable(tween(2200), RepeatMode.Reverse),
+        label = "spacePulse"
+    )
 
-private fun loadAssetImage(context: Context, assetName: String): ImageBitmap? = try {
-    val encoded = context.assets.open(assetName).bufferedReader().use { it.readText() }
-    val bytes = Base64.decode(encoded, Base64.DEFAULT)
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-} catch (_: Exception) {
-    null
+    Canvas(Modifier.fillMaxSize()) {
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color(0xFF35105E).copy(alpha = pulse),
+                    Color(0xFF0E0A1D).copy(alpha = 0.92f),
+                    AppColors.Background
+                ),
+                radius = size.maxDimension * 0.9f
+            )
+        )
+
+        val points = listOf(
+            0.08f to 0.09f, 0.77f to 0.08f, 0.93f to 0.18f,
+            0.18f to 0.28f, 0.56f to 0.27f, 0.86f to 0.36f,
+            0.05f to 0.58f, 0.38f to 0.51f, 0.74f to 0.58f,
+            0.94f to 0.72f, 0.19f to 0.84f, 0.65f to 0.91f
+        )
+        points.forEachIndexed { index, (x, y) ->
+            val alpha = if (index % 2 == 0) pulse else 0.25f + pulse * 0.35f
+            drawCircle(
+                color = AppColors.PurpleSoft.copy(alpha = alpha),
+                radius = if (index % 3 == 0) 2.2f else 1.2f,
+                center = androidx.compose.ui.geometry.Offset(size.width * x, size.height * y)
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeScreen(
+    channels: List<Channel>,
+    favorites: Set<String>,
+    onOpenCategory: (String) -> Unit
+) {
+    val categories = remember(favorites) { buildCategories(favorites) }
+
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val tablet = maxWidth >= 700.dp
+        val columns = if (tablet) 4 else 3
+        val horizontal = if (tablet) 28.dp else 14.dp
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columns),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = horizontal, vertical = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            item(span = { GridItemSpan(columns) }) {
+                Column {
+                    Header()
+                    Spacer(Modifier.height(14.dp))
+                    HeroBanner(tablet)
+                    Spacer(Modifier.height(16.dp))
+                    SectionTitle("Категории")
+                    Spacer(Modifier.height(2.dp))
+                }
+            }
+
+            items(categories.filter { it.id != "other" }) { category ->
+                CategoryCard(
+                    category = category,
+                    count = channels.count { category.matcher(it) },
+                    highlighted = category.id == "all",
+                    onClick = { onOpenCategory(category.id) }
+                )
+            }
+
+            item(span = { GridItemSpan(columns) }) {
+                Spacer(Modifier.height(2.dp))
+                DifferentCard(
+                    count = channels.count { buildCategories(favorites).first { c -> c.id == "other" }.matcher(it) },
+                    onClick = { onOpenCategory("other") }
+                )
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun Header() {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "IPTV",
+            color = AppColors.Purple,
+            fontSize = 27.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+        Text(
+            " Player",
+            color = AppColors.White,
+            fontSize = 27.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+    }
+}
+
+@Composable
+private fun SectionTitle(title: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            title,
+            color = AppColors.White,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.width(14.dp))
+        Box(
+            Modifier
+                .weight(1f)
+                .height(1.5.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(AppColors.Purple.copy(alpha = 0.9f), Color.Transparent)
+                    )
+                )
+        )
+    }
+}
+
+@Composable
+private fun HeroBanner(tablet: Boolean) {
+    val context = LocalContext.current
+    val hero by produceState<ImageBitmap?>(initialValue = null, key1 = context) {
+        value = withContext(Dispatchers.IO) { loadAssetImage(context, "hero_tv.png.b64") }
+    }
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(if (tablet) 220.dp else 196.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .shadow(14.dp, RoundedCornerShape(24.dp))
+            .background(Color(0xFF100826))
+    ) {
+        if (hero != null) {
+            androidx.compose.foundation.Image(
+                bitmap = hero!!,
+                contentDescription = "TV",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.20f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.10f)
+                            )
+                        )
+                    )
+            )
+        } else {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF34105F), Color(0xFF071A43), Color(0xFF101027))
+                        )
+                    )
+            )
+            Text(
+                "TV",
+                color = AppColors.White,
+                fontSize = 48.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 22.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryCard(
+    category: Category,
+    count: Int,
+    highlighted: Boolean,
+    onClick: () -> Unit
+) {
+    val transition = rememberInfiniteTransition(label = "cardGlow-${category.id}")
+    val glow by transition.animateFloat(
+        initialValue = if (highlighted) 0.35f else 0.10f,
+        targetValue = if (highlighted) 0.80f else 0.32f,
+        animationSpec = infiniteRepeatable(tween(1700), RepeatMode.Reverse),
+        label = "glow"
+    )
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .height(134.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0x66100B20))
+            .shadow(
+                elevation = if (highlighted) (10f * glow).dp else 4.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = AppColors.Purple.copy(alpha = glow),
+                spotColor = AppColors.Purple.copy(alpha = glow)
+            )
+            .clickable { onClick() }
+            .padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            Modifier
+                .size(68.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(
+                    Brush.radialGradient(
+                        listOf(
+                            AppColors.Purple.copy(alpha = 0.15f + glow * 0.20f),
+                            Color(0xFF0A0714)
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(category.icon, fontSize = 36.sp)
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            category.title,
+            color = AppColors.White,
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            "$count каналов",
+            color = AppColors.TextDim,
+            fontSize = 10.5.sp,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun DifferentCard(count: Int, onClick: () -> Unit) {
+    val transition = rememberInfiniteTransition(label = "differentGlow")
+    val pulse by transition.animateFloat(
+        initialValue = 0.70f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
+        label = "differentPulse"
+    )
+    val scale by transition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
+        label = "logoScale"
+    )
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(104.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFF28104C), Color(0xFF0B0715), Color(0xFF28104C))
+                )
+            )
+            .shadow(
+                elevation = (13f * pulse).dp,
+                shape = RoundedCornerShape(22.dp),
+                ambientColor = AppColors.Purple.copy(alpha = 0.35f * pulse),
+                spotColor = AppColors.Purple.copy(alpha = 0.65f * pulse)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(70.dp)
+                .graphicsLayer(scaleX = scale, scaleY = scale),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color(0x221A0D2A))
+            )
+            Box(
+                Modifier
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(
+                        Brush.radialGradient(
+                            listOf(AppColors.PurpleSoft.copy(alpha = 0.95f), AppColors.PurpleDeep)
+                        )
+                    )
+                    .shadow(
+                        16.dp,
+                        RoundedCornerShape(50),
+                        ambientColor = AppColors.Purple.copy(alpha = pulse),
+                        spotColor = AppColors.Purple.copy(alpha = pulse)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("IPTV", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Black)
+                    Text("Player", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(Modifier.width(18.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                "Разные",
+                color = AppColors.White,
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "$count каналов",
+                color = AppColors.PurpleSoft.copy(alpha = pulse),
+                fontSize = 11.sp
+            )
+        }
+        Text("›", color = AppColors.PurpleSoft.copy(alpha = pulse), fontSize = 40.sp)
+    }
 }
 
 private fun buildCategories(favorites: Set<String>): List<Category> = listOf(
@@ -174,186 +511,19 @@ private fun buildCategories(favorites: Set<String>): List<Category> = listOf(
     Category("entertainment", "Развлекательные", "🎭") { matches(it, "развлек", "entertain", "юмор", "шоу") },
     Category("regional", "Региональные", "📍") { matches(it, "регион", "region", "местн") },
     Category("foreign", "Зарубежные", "🌍") { matches(it, "зарубеж", "foreign", "international", "англ") },
-    Category("other", "Остальные", "📁") { channel ->
-        val known = listOf("узбек", "uzbek", "uzb", "новост", "news", "спорт", "sport", "кино", "movie", "film", "фильм", "дет", "kids", "child", "мульт", "музык", "music", "позн", "educ", "science", "документ", "развлек", "entertain", "юмор", "шоу", "регион", "region", "местн", "зарубеж", "foreign", "international", "англ")
+    Category("other", "Разные", "✨") { channel ->
+        val known = listOf(
+            "узбек", "uzbek", "uzb", "новост", "news", "спорт", "sport", "кино", "movie", "film", "фильм",
+            "дет", "kids", "child", "мульт", "музык", "music", "позн", "educ", "science", "документ",
+            "развлек", "entertain", "юмор", "шоу", "регион", "region", "местн", "зарубеж", "foreign",
+            "international", "англ"
+        )
         known.none { channel.group.contains(it, true) || channel.name.contains(it, true) }
     }
 )
 
 private fun matches(channel: Channel, vararg words: String): Boolean =
     words.any { channel.group.contains(it, true) || channel.name.contains(it, true) }
-
-@Composable
-private fun HomeScreen(
-    categories: List<Category>,
-    channels: List<Channel>,
-    onOpenCategory: (String) -> Unit
-) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val tablet = maxWidth >= 700.dp
-        val columns = if (tablet) 4 else 3
-        val horizontal = if (tablet) 28.dp else 14.dp
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = horizontal, vertical = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item(span = { GridItemSpan(columns) }) {
-                Column {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "IPTVPlayer",
-                        color = Color.White,
-                        fontSize = if (tablet) 30.sp else 26.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    HeroBanner(tablet)
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        "Категории",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            items(categories) { category ->
-                val count = categoryCount(category, channels)
-                CategoryCard(
-                    category = category,
-                    count = count,
-                    highlighted = category.id == "all",
-                    onClick = { onOpenCategory(category.id) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeroBanner(tablet: Boolean) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(if (tablet) 210.dp else 178.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(Color(0xFF34105F), Color(0xFF071A43), Color(0xFF11122D))
-                )
-            )
-            .shadow(10.dp, RoundedCornerShape(24.dp))
-            .padding(horizontal = if (tablet) 28.dp else 20.dp)
-    ) {
-        Column(
-            Modifier.align(Alignment.CenterStart),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text("TV", color = Color.White, fontSize = if (tablet) 50.sp else 42.sp, fontWeight = FontWeight.Black)
-            Text("В ХОРОШЕМ КАЧЕСТВЕ", color = Color.White, fontSize = if (tablet) 21.sp else 17.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Box(Modifier.width(72.dp).height(3.dp).clip(RoundedCornerShape(4.dp)).background(AppColors.Purple))
-        }
-
-        Box(
-            Modifier
-                .align(Alignment.CenterEnd)
-                .width(if (tablet) 310.dp else 220.dp)
-                .height(if (tablet) 145.dp else 112.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color(0xFF070914))
-                .shadow(12.dp, RoundedCornerShape(14.dp))
-        ) {
-            Text(
-                "IPTVPlayer",
-                color = Color.White,
-                fontSize = if (tablet) 25.sp else 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Center)
-            )
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .width(85.dp)
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(Color(0xFF25273A))
-            )
-        }
-
-        Box(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = (-8).dp, y = (-2).dp)
-                .width(if (tablet) 115.dp else 88.dp)
-                .height(30.dp)
-                .clip(RoundedCornerShape(15.dp))
-                .background(Color(0xFF080910))
-                .shadow(8.dp, RoundedCornerShape(15.dp))
-        )
-    }
-}
-
-@Composable
-private fun CategoryCard(
-    category: Category,
-    count: Int,
-    highlighted: Boolean,
-    onClick: () -> Unit
-) {
-    val border = if (highlighted) AppColors.Purple else Color(0x665F4B86)
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .height(116.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(AppColors.Surface)
-            .shadow(if (highlighted) 9.dp else 3.dp, RoundedCornerShape(20.dp))
-            .clickable { onClick() }
-            .padding(10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(Color(0xFF4A3A75), Color(0xFF111126))
-                    )
-                )
-                .shadow(7.dp, RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(category.icon, fontSize = 31.sp)
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(
-            category.title,
-            color = Color.White,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            "$count каналов",
-            color = AppColors.TextDim,
-            fontSize = 11.sp,
-            maxLines = 1
-        )
-    }
-}
-
-private fun categoryCount(category: Category, channels: List<Channel>): Int = when (category.id) {
-    "favorites" -> channels.count { category.matcher(it) }
-    else -> channels.count { category.matcher(it) }
-}
 
 @Composable
 private fun ChannelListScreen(
@@ -372,13 +542,13 @@ private fun ChannelListScreen(
         .filter { category?.matcher?.invoke(it) ?: true }
         .filter { it.name.contains(search, true) || it.group.contains(search, true) }
 
-    Column(Modifier.fillMaxSize().background(spaceBackground())) {
+    Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(onClick = onBack) { Text("← Назад", color = AppColors.Purple) }
-            Text(title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onBack) { Text("←", color = AppColors.Purple, fontSize = 26.sp) }
+            Text(title, color = AppColors.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         OutlinedTextField(
             value = search,
@@ -425,32 +595,30 @@ private fun ChannelRow(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 5.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(Color(0x6615172A))
+            .background(Color(0x66100B20))
             .clickable { onClick() }
-            .padding(10.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (!channel.logo.isNullOrBlank()) {
-            AsyncImage(
-                model = channel.logo,
-                contentDescription = channel.name,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.size(54.dp).clip(RoundedCornerShape(14.dp))
-            )
-        } else {
-            Box(
-                Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF29263F)),
-                contentAlignment = Alignment.Center
-            ) { Text("TV", color = AppColors.Purple, fontWeight = FontWeight.Bold) }
+        Box(Modifier.size(50.dp), contentAlignment = Alignment.Center) {
+            if (!channel.logo.isNullOrBlank()) {
+                AsyncImage(
+                    model = channel.logo,
+                    contentDescription = channel.name,
+                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
+                )
+            } else {
+                Text("TV", color = AppColors.PurpleSoft, fontWeight = FontWeight.Bold)
+            }
         }
-        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-            Text(channel.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(channel.group.ifBlank { "Телеканал" }, color = AppColors.TextDim, fontSize = 12.sp, maxLines = 1)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(channel.name, color = AppColors.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(channel.group, color = AppColors.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         TextButton(onClick = onToggleFavorite) {
-            Text(if (favorite) "★" else "☆", color = if (favorite) Color(0xFFFFC83D) else AppColors.TextDim, fontSize = 25.sp)
+            Text(if (favorite) "★" else "☆", color = AppColors.PurpleSoft, fontSize = 24.sp)
         }
-        Text("›", color = AppColors.Purple, fontSize = 34.sp)
     }
 }
 
@@ -459,22 +627,57 @@ private fun PlayerScreen(channel: Channel, onBack: () -> Unit) {
     val context = LocalContext.current
     val player = remember(channel.url) {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.Builder().setUri(channel.url).build())
+            setMediaItem(MediaItem.fromUri(channel.url))
             prepare()
             playWhenReady = true
         }
     }
-    DisposableEffect(player) { onDispose { player.release() } }
+
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+
     Column(Modifier.fillMaxSize().background(Color.Black)) {
-        Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("← Назад", color = AppColors.Purple) }
-            Text(channel.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp))
+        Row(
+            Modifier.fillMaxWidth().background(Color(0xFF08050F)).padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onBack) {
+                Text("←", color = AppColors.PurpleSoft, fontSize = 26.sp)
+            }
+            Text(
+                channel.name,
+                color = AppColors.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
         AndroidView(
-            factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true } },
+            factory = {
+                PlayerView(it).apply {
+                    useController = true
+                    this.player = player
+                }
+            },
             modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
         )
+        Text(
+            channel.group,
+            color = AppColors.TextDim,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(14.dp)
+        )
     }
+}
+
+private fun loadAssetImage(context: Context, assetName: String): ImageBitmap? = try {
+    val encoded = context.assets.open(assetName).bufferedReader().use { it.readText() }
+    val bytes = Base64.decode(encoded, Base64.DEFAULT)
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+} catch (_: Exception) {
+    null
 }
 
 private fun loadFavorites(prefs: SharedPreferences): Set<String> =
@@ -485,45 +688,51 @@ private fun toggleFavorite(
     current: Set<String>,
     channel: Channel
 ): Set<String> {
-    val next = current.toMutableSet()
-    if (!next.add(channel.url)) next.remove(channel.url)
-    prefs.edit().putStringSet(FAVORITES, next).apply()
-    return next
+    val updated = current.toMutableSet()
+    if (!updated.add(channel.url)) updated.remove(channel.url)
+    prefs.edit().putStringSet(FAVORITES, updated).apply()
+    return updated.toSet()
 }
 
-private fun loadM3u(url: String): List<Channel> = try {
-    parseM3u(URL(url).readText())
-} catch (_: Exception) {
-    emptyList()
-}
+private fun loadM3u(url: String): List<Channel> {
+    return try {
+        val result = mutableListOf<Channel>()
+        val lines = URL(url).openStream().bufferedReader().use { it.readLines() }
+        var currentName: String? = null
+        var currentGroup = ""
+        var currentLogo: String? = null
+        var currentUserAgent: String? = null
 
-private fun parseM3u(text: String): List<Channel> {
-    val result = mutableListOf<Channel>()
-    var name = ""
-    var group = ""
-    var logo: String? = null
-    var ua: String? = null
-
-    text.lineSequence().forEach { raw ->
-        val line = raw.trim()
-        when {
-            line.startsWith("#EXTINF:", true) -> {
-                name = line.substringAfterLast(",").trim()
-                group = Regex("""group-title=\"([^\"]*)\"""", RegexOption.IGNORE_CASE)
-                    .find(line)?.groupValues?.getOrNull(1).orEmpty()
-                logo = Regex("""tvg-logo=\"([^\"]*)\"""", RegexOption.IGNORE_CASE)
-                    .find(line)?.groupValues?.getOrNull(1)
-            }
-            line.startsWith("#EXTVLCOPT:http-user-agent=", true) -> ua = line.substringAfter("=", "").trim()
-            line.startsWith("#") || line.isBlank() -> Unit
-            else -> {
-                if (name.isNotBlank()) result += Channel(name, group, logo, line, ua)
-                name = ""
-                group = ""
-                logo = null
-                ua = null
+        for (raw in lines) {
+            val line = raw.trim()
+            if (line.startsWith("#EXTINF", ignoreCase = true)) {
+                currentName = line.substringAfterLast(",").trim().ifBlank { "Канал" }
+                currentGroup = extractAttribute(line, "group-title")
+                currentLogo = extractAttribute(line, "tvg-logo").ifBlank { null }
+                currentUserAgent = extractAttribute(line, "http-user-agent").ifBlank { null }
+            } else if (line.isNotBlank() && !line.startsWith("#") && currentName != null) {
+                result += Channel(
+                    name = currentName!!,
+                    group = currentGroup.ifBlank { "Без категории" },
+                    logo = currentLogo,
+                    url = line,
+                    userAgent = currentUserAgent
+                )
+                currentName = null
+                currentGroup = ""
+                currentLogo = null
+                currentUserAgent = null
             }
         }
+        result
+    } catch (_: Exception) {
+        emptyList()
     }
-    return result
+}
+
+private fun extractAttribute(line: String, key: String): String {
+    val quoted = Regex("$key=\\\"([^\\\"]*)\\\"").find(line)
+    if (quoted != null) return quoted.groupValues[1]
+    val unquoted = Regex("$key=([^\\s,]+)").find(line)
+    return unquoted?.groupValues?.getOrNull(1).orEmpty()
 }
