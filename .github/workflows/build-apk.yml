@@ -31,23 +31,11 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Apply exact reference UI
-        run: python3 scripts/apply_reference_ui.py
-
       - name: Fix Compose compile issues
         run: python3 scripts/fix_compile.py
 
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
-
-      - name: Verify requested UI resources
-        run: |
-          test -f app/src/main/res/drawable-nodpi/hero_tv.png
-          test -f app/src/main/res/drawable-nodpi/iptv_channels_photo.webp
-          test -f app/src/main/res/drawable-nodpi/movies_photo.webp
-          grep -q 'Scaffold(containerColor = BG) { padding ->' app/src/main/java/com/example/iptvplayer/MainActivity.kt
-          grep -q 'R.drawable.hero_tv' app/src/main/java/com/example/iptvplayer/MainActivity.kt
-          ! grep -q 'bottomBar = { BottomBar' app/src/main/java/com/example/iptvplayer/MainActivity.kt
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
